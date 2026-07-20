@@ -1,0 +1,556 @@
+#include "Axes.h"
+
+#include <math.h>
+
+Axes::Axes(StepperController &stepperController)
+  : stepper(stepperController),
+    leadPositionSteps(0),
+    leadPuckLevel(0),
+    barrelPositionSteps(0),
+    yawPositionSteps(0)
+{
+}
+
+long Axes::leadMillimetersToSteps(float millimeters) const
+{
+  return lround(millimeters * Config::LEAD_STEPS_PER_MM);
+}
+
+float Axes::leadStepsToMillimeters(long steps) const
+{
+  if (Config::LEAD_STEPS_PER_MM <= 0.0f)
+  {
+    return 0.0f;
+  }
+
+  return (float)steps / Config::LEAD_STEPS_PER_MM;
+}
+
+float Axes::getLeadPuckLevelMillimeters(uint8_t puckLevel) const
+{
+  if (puckLevel == 0)
+  {
+    return 0.0f;
+  }
+
+  return Config::FIRST_PUCK_EXTRA_OFFSET_MM +
+    ((float)puckLevel * Config::PUCK_HEIGHT_MM);
+}
+
+void Axes::moveLeadToStepPosition(long targetStepPosition)
+{
+  const long totalTravelSteps = leadMillimetersToSteps(
+    Config::BARREL_HEIGHT_MM
+  );
+
+  if (targetStepPosition < 0)
+  {
+    targetStepPosition = 0;
+  }
+
+  if (targetStepPosition > totalTravelSteps)
+  {
+    targetStepPosition = totalTravelSteps;
+  }
+
+  long requestedMovement = targetStepPosition - leadPositionSteps;
+
+  if (requestedMovement == 0)
+  {
+    Serial.println(F("Lead screw is already at that position."));
+    return;
+  }
+
+  long completedMovement = stepper.moveSteps(
+    Config::MotorId::LeadScrew,
+    requestedMovement,
+    Config::LEAD_POSITIVE_DIRECTION_LEVEL,
+    Config::LEAD_PROFILE
+  );
+
+  leadPositionSteps += completedMovement;
+
+  if (completedMovement == requestedMovement)
+  {
+    leadPositionSteps = targetStepPosition;
+  }
+  else
+  {
+    // A stopped move no longer matches a known puck level.
+    leadPuckLevel = -1;
+    Serial.println(F("Lead-screw movement stopped before completion."));
+  }
+
+  Serial.print(F("Lead position: "));
+  Serial.print(leadStepsToMillimeters(leadPositionSteps), 3);
+  Serial.print(F(" / "));
+  Serial.print(Config::BARREL_HEIGHT_MM, 3);
+  Serial.print(F(" mm ("));
+  Serial.print(leadPositionSteps);
+  Serial.println(F(" steps)"));
+}
+
+bool Axes::moveLeadToPuckLevel(uint8_t targetPuckLevel)
+{
+  if (targetPuckLevel > Config::PUCK_COUNT)
+  {
+    Serial.println(F("All configured pucks have already been raised."));
+    return false;
+  }
+
+  const float targetMillimeters =
+    getLeadPuckLevelMillimeters(targetPuckLevel);
+
+  if (targetMillimeters > Config::BARREL_HEIGHT_MM)
+  {
+    Serial.println(F("Configured puck stack plus offset exceeds barrel height."));
+    return false;
+  }
+
+  long targetSteps = leadMillimetersToSteps(targetMillimeters);
+  long startingPosition = leadPositionSteps;
+
+  moveLeadToStepPosition(targetSteps);
+
+  if (leadPositionSteps == targetSteps)
+  {
+    leadPuckLevel = (int8_t)targetPuckLevel;
+
+    Serial.print(F("Lead puck level: "));
+    Serial.print(leadPuckLevel);
+    Serial.print(F(" / "));
+    Serial.println(Config::PUCK_COUNT);
+
+    return true;
+  }
+
+  if (leadPositionSteps != startingPosition)
+  {
+    leadPuckLevel = -1;
+  }
+
+  return false;
+}
+
+bool Axes::moveLeadUpOnePuck()
+{
+  if (leadPuckLevel < 0)
+  {
+    Serial.println(F("Lead puck level is unknown. Home to bottom with D, then retry."));
+    return false;
+  }
+
+  if (leadPuckLevel >= Config::PUCK_COUNT)
+  {
+    Serial.println(F("All configured pucks have already been raised."));
+    return false;
+  }
+
+  return moveLeadToPuckLevel((uint8_t)(leadPuckLevel + 1));
+}
+
+bool Axes::moveLeadDownOnePuck()
+{
+  if (leadPuckLevel < 0)
+  {
+    Serial.println(F("Lead puck level is unknown. Home to bottom with D, then retry."));
+    return false;
+  }
+
+  if (leadPuckLevel == 0)
+  {
+    Serial.println(F("Lead screw is already at the bottom puck level."));
+    return false;
+  }
+
+  return moveLeadToPuckLevel((uint8_t)(leadPuckLevel - 1));
+}
+
+void Axes::moveLeadToTop()
+{
+  moveLeadToStepPosition(
+    leadMillimetersToSteps(Config::BARREL_HEIGHT_MM)
+  );
+
+  // Full mechanical top is not necessarily one of the normal
+  // puck deployment levels, so require re-homing before W/S.
+  leadPuckLevel = -1;
+}
+
+void Axes::moveLeadToBottom()
+{
+  moveLeadToStepPosition(0);
+
+  if (leadPositionSteps == 0)
+  {
+    leadPuckLevel = 0;
+  }
+}
+
+void Axes::setLeadPositionAsBottom()
+{
+  leadPositionSteps = 0;
+  leadPuckLevel = 0;
+  Serial.println(F("Current lead-screw position set as bottom (0 mm)."));
+}
+
+long Axes::getBarrelStepsPerRevolution() const
+{
+  float calculatedSteps =
+    (float)Config::BARREL_MOTOR_FULL_STEPS_PER_REVOLUTION *
+    (float)Config::BARREL_MICROSTEPS *
+    Config::BARREL_GEAR_RATIO;
+
+  return lround(calculatedSteps);
+}
+
+long Axes::normalizeBarrelPosition(long position) const
+{
+  long stepsPerRevolution = getBarrelStepsPerRevolution();
+
+  if (stepsPerRevolution <= 0)
+  {
+    return 0;
+  }
+
+  position %= stepsPerRevolution;
+
+  if (position < 0)
+  {
+    position += stepsPerRevolution;
+  }
+
+  return position;
+}
+
+int Axes::getNearestBarrelIndex() const
+{
+  long stepsPerRevolution = getBarrelStepsPerRevolution();
+
+  if (stepsPerRevolution <= 0)
+  {
+    return 0;
+  }
+
+  long roundedIndex =
+    (
+      barrelPositionSteps * Config::BARREL_POSITION_COUNT +
+      stepsPerRevolution / 2L
+    ) /
+    stepsPerRevolution;
+
+  roundedIndex %= Config::BARREL_POSITION_COUNT;
+
+  return (int)roundedIndex;
+}
+
+void Axes::moveBarrelToIndex(int targetIndex)
+{
+  if (
+    targetIndex < 0 ||
+    targetIndex >= Config::BARREL_POSITION_COUNT
+  )
+  {
+    Serial.print(F("Barrel index must be between 0 and "));
+    Serial.print(Config::BARREL_POSITION_COUNT - 1);
+    Serial.println(F("."));
+    return;
+  }
+
+  long stepsPerRevolution = getBarrelStepsPerRevolution();
+
+  if (stepsPerRevolution <= 0)
+  {
+    Serial.println(F("Invalid barrel calibration."));
+    return;
+  }
+
+  long targetStepPosition = lround(
+    (
+      (float)targetIndex *
+      (float)stepsPerRevolution
+    ) /
+    (float)Config::BARREL_POSITION_COUNT
+  );
+
+  long requestedMovement = targetStepPosition - barrelPositionSteps;
+
+  // Take the shortest route to the requested chamber.
+  if (requestedMovement > stepsPerRevolution / 2L)
+  {
+    requestedMovement -= stepsPerRevolution;
+  }
+  else if (requestedMovement < -(stepsPerRevolution / 2L))
+  {
+    requestedMovement += stepsPerRevolution;
+  }
+
+  Serial.print(F("Moving barrel to index "));
+  Serial.println(targetIndex);
+
+  long completedMovement = stepper.moveSteps(
+    Config::MotorId::Barrel,
+    requestedMovement,
+    Config::BARREL_POSITIVE_DIRECTION_LEVEL,
+    Config::BARREL_PROFILE
+  );
+
+  barrelPositionSteps = normalizeBarrelPosition(
+    barrelPositionSteps + completedMovement
+  );
+
+  if (completedMovement == requestedMovement)
+  {
+    barrelPositionSteps = normalizeBarrelPosition(targetStepPosition);
+    Serial.println(F("Barrel index movement complete."));
+  }
+  else
+  {
+    Serial.println(F("Barrel movement stopped before completion."));
+  }
+}
+
+void Axes::moveBarrelToNextIndex()
+{
+  int nextIndex = getNearestBarrelIndex() + 1;
+
+  if (nextIndex >= Config::BARREL_POSITION_COUNT)
+  {
+    nextIndex = 0;
+  }
+
+  moveBarrelToIndex(nextIndex);
+}
+
+void Axes::moveBarrelToPreviousIndex()
+{
+  int previousIndex = getNearestBarrelIndex() - 1;
+
+  if (previousIndex < 0)
+  {
+    previousIndex = Config::BARREL_POSITION_COUNT - 1;
+  }
+
+  moveBarrelToIndex(previousIndex);
+}
+
+void Axes::setBarrelPositionAsIndexZero()
+{
+  barrelPositionSteps = 0;
+  Serial.println(F("Current barrel position set as index 0."));
+}
+
+float Axes::getYawStepsPerDegree() const
+{
+  float outputStepsPerRevolution =
+    (float)Config::YAW_MOTOR_FULL_STEPS_PER_REVOLUTION *
+    (float)Config::YAW_MICROSTEPS *
+    Config::YAW_GEAR_RATIO;
+
+  return outputStepsPerRevolution / 360.0f;
+}
+
+float Axes::getYawDegreesPerStep() const
+{
+  float stepsPerDegree = getYawStepsPerDegree();
+
+  if (stepsPerDegree <= 0.0f)
+  {
+    return 0.0f;
+  }
+
+  return 1.0f / stepsPerDegree;
+}
+
+float Axes::getCurrentYawDegrees() const
+{
+  float stepsPerDegree = getYawStepsPerDegree();
+
+  if (stepsPerDegree <= 0.0f)
+  {
+    return 0.0f;
+  }
+
+  return (float)yawPositionSteps / stepsPerDegree;
+}
+
+void Axes::moveYawToDegrees(float targetDegrees)
+{
+  if (targetDegrees < Config::YAW_MINIMUM_DEGREES)
+  {
+    targetDegrees = Config::YAW_MINIMUM_DEGREES;
+  }
+
+  if (targetDegrees > Config::YAW_MAXIMUM_DEGREES)
+  {
+    targetDegrees = Config::YAW_MAXIMUM_DEGREES;
+  }
+
+  long targetStepPosition = lround(
+    targetDegrees * getYawStepsPerDegree()
+  );
+
+  long requestedMovement = targetStepPosition - yawPositionSteps;
+
+  // Round to the nearest physically commandable microstep.
+  float achievableTargetDegrees =
+    (float)targetStepPosition * getYawDegreesPerStep();
+
+  Serial.print(F("Moving yaw to requested "));
+  Serial.print(targetDegrees, 4);
+  Serial.print(F(" deg; achievable target "));
+  Serial.print(achievableTargetDegrees, 6);
+  Serial.println(F(" deg"));
+
+  long completedMovement = stepper.moveSteps(
+    Config::MotorId::Yaw,
+    requestedMovement,
+    Config::YAW_POSITIVE_DIRECTION_LEVEL,
+    Config::YAW_PROFILE,
+    Config::YAW_HOLD_AFTER_MOVE
+  );
+
+  yawPositionSteps += completedMovement;
+
+  if (completedMovement == requestedMovement)
+  {
+    yawPositionSteps = targetStepPosition;
+    Serial.println(F("Yaw movement complete."));
+  }
+  else
+  {
+    Serial.println(F("Yaw movement stopped before completion."));
+  }
+}
+
+void Axes::moveYawRelativeDegrees(float movementDegrees)
+{
+  moveYawToDegrees(getCurrentYawDegrees() + movementDegrees);
+}
+
+void Axes::moveYawByMicrosteps(long microsteps)
+{
+  if (microsteps == 0)
+  {
+    Serial.println(F("Yaw microstep movement must not be zero."));
+    return;
+  }
+
+  long minimumStepPosition = lround(
+    Config::YAW_MINIMUM_DEGREES * getYawStepsPerDegree()
+  );
+
+  long maximumStepPosition = lround(
+    Config::YAW_MAXIMUM_DEGREES * getYawStepsPerDegree()
+  );
+
+  long targetStepPosition = yawPositionSteps + microsteps;
+
+  if (targetStepPosition < minimumStepPosition)
+  {
+    targetStepPosition = minimumStepPosition;
+  }
+
+  if (targetStepPosition > maximumStepPosition)
+  {
+    targetStepPosition = maximumStepPosition;
+  }
+
+  long requestedMovement = targetStepPosition - yawPositionSteps;
+
+  if (requestedMovement == 0)
+  {
+    Serial.println(F("Yaw is already at the requested travel limit."));
+    return;
+  }
+
+  long completedMovement = stepper.moveSteps(
+    Config::MotorId::Yaw,
+    requestedMovement,
+    Config::YAW_POSITIVE_DIRECTION_LEVEL,
+    Config::YAW_PROFILE,
+    Config::YAW_HOLD_AFTER_MOVE
+  );
+
+  yawPositionSteps += completedMovement;
+
+  if (completedMovement == requestedMovement)
+  {
+    yawPositionSteps = targetStepPosition;
+  }
+
+  Serial.print(F("Yaw moved to "));
+  Serial.print(getCurrentYawDegrees(), 6);
+  Serial.print(F(" degrees ("));
+  Serial.print(yawPositionSteps);
+  Serial.println(F(" microsteps from zero)."));
+}
+
+void Axes::releaseYawMotor()
+{
+  stepper.disableMotor(Config::MotorId::Yaw);
+  Serial.println(F("Yaw motor released; holding torque is off."));
+}
+
+void Axes::setYawPositionAsZero()
+{
+  yawPositionSteps = 0;
+  Serial.println(F("Current yaw position set as 0 degrees."));
+}
+
+void Axes::printStatus(Stream &output) const
+{
+  output.println();
+  output.println(F("========== POSITION STATUS =========="));
+
+  output.print(F("Lead screw: "));
+  output.print(leadStepsToMillimeters(leadPositionSteps), 3);
+  output.print(F(" / "));
+  output.print(Config::BARREL_HEIGHT_MM, 3);
+  output.print(F(" mm ("));
+  output.print(leadPositionSteps);
+  output.println(F(" steps)"));
+
+  output.print(F("Lead puck level: "));
+  if (leadPuckLevel < 0)
+  {
+    output.println(F("unknown; home to bottom before W/S"));
+  }
+  else
+  {
+    output.print(leadPuckLevel);
+    output.print(F(" / "));
+    output.println(Config::PUCK_COUNT);
+  }
+
+  output.print(F("Barrel index: "));
+  output.print(getNearestBarrelIndex());
+  output.print(F(" of "));
+  output.println(Config::BARREL_POSITION_COUNT);
+
+  output.print(F("Barrel position: "));
+  output.print(barrelPositionSteps);
+  output.print(F(" / "));
+  output.print(getBarrelStepsPerRevolution());
+  output.println(F(" steps/revolution"));
+
+  output.print(F("Yaw: "));
+  output.print(getCurrentYawDegrees(), 6);
+  output.println(F(" degrees"));
+
+  output.print(F("Yaw resolution: "));
+  output.print(getYawDegreesPerStep(), 8);
+  output.println(F(" degrees per STEP pulse"));
+
+  output.print(F("Yaw allowed range: "));
+  output.print(Config::YAW_MINIMUM_DEGREES, 1);
+  output.print(F(" to +"));
+  output.print(Config::YAW_MAXIMUM_DEGREES, 1);
+  output.println(F(" degrees"));
+
+  output.print(F("Yaw position: "));
+  output.print(yawPositionSteps);
+  output.println(F(" steps"));
+
+  output.println(F("====================================="));
+}
