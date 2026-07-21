@@ -60,25 +60,25 @@ namespace Config {
   // ==========================================================
 
   // ==========================================================
-// LEAD-SCREW CONFIGURATION
-// ==========================================================
+  // LEAD-SCREW CONFIGURATION
+  // ==========================================================
 
-constexpr float PUCK_HEIGHT_MM = 14.0f;
-constexpr float BARREL_HEIGHT_MM = 273.0f;
-constexpr uint8_t PUCK_COUNT = 17;
-constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
+  constexpr float PUCK_HEIGHT_MM = 14.0f;
+  constexpr float BARREL_HEIGHT_MM = 273.0f;
+  constexpr uint8_t PUCK_COUNT = 17;
+  constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
 
   constexpr uint16_t LEAD_CURRENT_MA = 1200;
   constexpr uint16_t LEAD_MICROSTEPS = 16;
   constexpr float LEAD_STEPS_PER_MM = 100.8f;
   constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
 
-// Matches the speed used by the working standalone program
-constexpr MotionProfile LEAD_PROFILE = {
-  1200,
-  1200,
-  0
-};;
+  // Matches the speed used by the working standalone program
+  constexpr MotionProfile LEAD_PROFILE = {
+    1200,
+    1200,
+    0
+  };;
 
   // ==========================================================
   // SERVO DEPLOYMENT SETTINGS
