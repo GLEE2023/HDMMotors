@@ -9,22 +9,27 @@ StepperController::StepperController()
 
 void StepperController::begin()
 {
+  // Lead screw pins
   pinMode(Config::LEAD_STEP_PIN, OUTPUT);
   pinMode(Config::LEAD_DIRECTION_PIN, OUTPUT);
   pinMode(Config::LEAD_ENABLE_PIN, OUTPUT);
 
+  // Barrel pins
   pinMode(Config::BARREL_STEP_PIN, OUTPUT);
   pinMode(Config::BARREL_DIRECTION_PIN, OUTPUT);
   pinMode(Config::BARREL_ENABLE_PIN, OUTPUT);
 
+  // Yaw pins
   pinMode(Config::YAW_STEP_PIN, OUTPUT);
   pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
   pinMode(Config::YAW_ENABLE_PIN, OUTPUT);
 
+  // SPI chip-select pins
   pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
   pinMode(Config::BARREL_CHIP_SELECT_PIN, OUTPUT);
   pinMode(Config::YAW_CHIP_SELECT_PIN, OUTPUT);
 
+  // Initial STEP and DIR states
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
   digitalWrite(Config::LEAD_DIRECTION_PIN, LOW);
 
@@ -34,34 +39,30 @@ void StepperController::begin()
   digitalWrite(Config::YAW_STEP_PIN, LOW);
   digitalWrite(Config::YAW_DIRECTION_PIN, LOW);
 
-  disableAllMotors();
+  // Keep the lead screw permanently enabled.
+  // TMC5160 enable is active-low.
+  digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
 
-  // Keep every SPI device deselected until addressed.
+  // Keep barrel and yaw disabled during this lead-screw test.
+  digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
+  digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
+
+  // Deselect all SPI devices before SPI starts.
   digitalWrite(Config::LEAD_CHIP_SELECT_PIN, HIGH);
   digitalWrite(Config::BARREL_CHIP_SELECT_PIN, HIGH);
   digitalWrite(Config::YAW_CHIP_SELECT_PIN, HIGH);
 
   SPI.begin();
 
+  // Configure only the lead-screw driver for now.
   configureDriver(
     leadDriver,
     Config::LEAD_CURRENT_MA,
     Config::LEAD_MICROSTEPS
   );
 
-  configureDriver(
-    barrelDriver,
-    Config::BARREL_CURRENT_MA,
-    Config::BARREL_MICROSTEPS
-  );
-
-  configureDriver(
-    yawDriver,
-    Config::YAW_CURRENT_MA,
-    Config::YAW_MICROSTEPS
-  );
-
-  disableAllMotors();
+  // Ensure lead driver remains enabled after setup.
+  digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
 }
 
 void StepperController::configureDriver(
@@ -75,23 +76,22 @@ void StepperController::configureDriver(
   driver.rms_current(currentMilliamps);
   driver.microsteps(microsteps);
 
-  // false selects SpreadCycle through the TMCStepper API.
+  // SpreadCycle mode
   driver.en_pwm_mode(false);
 }
 
 void StepperController::disableAllMotors()
 {
-  // Keep every STEP line low while the motors are inactive.
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
   digitalWrite(Config::BARREL_STEP_PIN, LOW);
   digitalWrite(Config::YAW_STEP_PIN, LOW);
 
-  // TMC5160 enable is active-low. HIGH disables the output stage.
-  digitalWrite(Config::LEAD_ENABLE_PIN, HIGH);
+  // Lead stays enabled.
+  digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
+
+  // Barrel and yaw stay disabled.
   digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
   digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
-
-  delayMicroseconds(Config::DIRECTION_SETUP_TIME_US);
 }
 
 uint8_t StepperController::getStepPin(Config::MotorId motor) const
@@ -154,12 +154,20 @@ uint8_t StepperController::getEnablePin(Config::MotorId motor) const
 void StepperController::disableMotor(Config::MotorId motor)
 {
   uint8_t stepPin = getStepPin(motor);
-  uint8_t enablePin = getEnablePin(motor);
 
   if (stepPin != 255)
   {
     digitalWrite(stepPin, LOW);
   }
+
+  // Never disable the lead-screw driver during this test.
+  if (motor == Config::MotorId::LeadScrew)
+  {
+    digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
+    return;
+  }
+
+  uint8_t enablePin = getEnablePin(motor);
 
   if (enablePin != 255)
   {
@@ -174,7 +182,7 @@ void StepperController::enableMotor(Config::MotorId motor)
   if (enablePin != 255)
   {
     digitalWrite(enablePin, LOW);
-    delay(Config::ENABLE_SETTLE_TIME_MS);
+    delay(5);
   }
 }
 
@@ -184,8 +192,13 @@ uint16_t StepperController::calculatePulseDelay(
   const Config::MotionProfile &profile
 ) const
 {
+  // For the lead screw, use the fixed delay from the working test code.
+  if (profile.accelerationSteps == 0)
+  {
+    return profile.cruiseDelayUs;
+  }
+
   if (
-    profile.accelerationSteps == 0 ||
     profile.startingDelayUs <= profile.cruiseDelayUs ||
     totalSteps < 2
   )
@@ -207,7 +220,9 @@ uint16_t StepperController::calculatePulseDelay(
   }
 
   unsigned long distanceFromStart = stepNumber;
-  unsigned long distanceFromEnd = totalSteps - stepNumber - 1UL;
+  unsigned long distanceFromEnd =
+    totalSteps - stepNumber - 1UL;
+
   unsigned long distanceFromNearestEnd = distanceFromStart;
 
   if (distanceFromEnd < distanceFromNearestEnd)
@@ -229,7 +244,8 @@ uint16_t StepperController::calculatePulseDelay(
     rampSteps;
 
   return (uint16_t)(
-    (unsigned long)profile.startingDelayUs - delayReduction
+    (unsigned long)profile.startingDelayUs -
+    delayReduction
   );
 }
 
@@ -242,7 +258,8 @@ bool StepperController::emergencyStopRequested()
 
   char incomingCharacter = (char)Serial.peek();
 
-  if (incomingCharacter != 'x' && incomingCharacter != 'X')
+  if (incomingCharacter != 'x' &&
+      incomingCharacter != 'X')
   {
     return false;
   }
@@ -277,7 +294,10 @@ long StepperController::moveSteps(
   bool keepEnabledAfterMove
 )
 {
-  if (motor == Config::MotorId::None || signedSteps == 0)
+  if (
+    motor == Config::MotorId::None ||
+    signedSteps == 0
+  )
   {
     return 0;
   }
@@ -291,6 +311,7 @@ long StepperController::moveSteps(
   }
 
   bool movingPositive = signedSteps > 0;
+
   bool directionLevel = movingPositive
     ? positiveDirectionLevel
     : !positiveDirectionLevel;
@@ -299,13 +320,15 @@ long StepperController::moveSteps(
     ? (unsigned long)signedSteps
     : (unsigned long)(-signedSteps);
 
-  // Only cycle the selected axis. Other independently wired axes may
-  // remain energized, allowing yaw to keep holding its deployment angle.
-  disableMotor(motor);
-
   digitalWrite(stepPin, LOW);
-  digitalWrite(directionPin, directionLevel ? HIGH : LOW);
-  delayMicroseconds(Config::DIRECTION_SETUP_TIME_US);
+
+  digitalWrite(
+    directionPin,
+    directionLevel ? HIGH : LOW
+  );
+
+  // Match the working standalone test more closely.
+  delay(5);
 
   enableMotor(motor);
 
@@ -332,7 +355,7 @@ long StepperController::moveSteps(
     );
 
     digitalWrite(stepPin, HIGH);
-    delayMicroseconds(Config::STEP_HIGH_TIME_US);
+    delayMicroseconds(5);
 
     digitalWrite(stepPin, LOW);
     delayMicroseconds(pulseDelay);
@@ -342,17 +365,18 @@ long StepperController::moveSteps(
 
   digitalWrite(stepPin, LOW);
 
-  if (!keepEnabledAfterMove)
+  // Keep lead screw enabled permanently.
+  if (
+    motor != Config::MotorId::LeadScrew &&
+    !keepEnabledAfterMove
+  )
   {
     disableMotor(motor);
   }
 
-  if (movingPositive)
-  {
-    return (long)completedSteps;
-  }
-
-  return -(long)completedSteps;
+  return movingPositive
+    ? (long)completedSteps
+    : -(long)completedSteps;
 }
 
 void StepperController::printConnectionTests(Stream &output)
@@ -363,11 +387,15 @@ void StepperController::printConnectionTests(Stream &output)
   output.print(F("  Lead screw: "));
   output.println(leadDriver.test_connection());
 
-  output.print(F("  Barrel:     "));
-  output.println(barrelDriver.test_connection());
+  output.println(
+    F("  Barrel:     disabled for lead test")
+  );
 
-  output.print(F("  Yaw:        "));
-  output.println(yawDriver.test_connection());
+  output.println(
+    F("  Yaw:        disabled for lead test")
+  );
 
-  output.println(F("A result of 0 normally indicates a successful connection."));
+  output.println(
+    F("A lead-screw result of 0 normally indicates success.")
+  );
 }

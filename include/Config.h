@@ -28,8 +28,8 @@ namespace Config
   constexpr uint8_t RIGHT_SERVO_PIN = A4;
 
   // Limit Switch Pins
-  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = A5; // Lower limit switch
-  constexpr uint8_t TOP_BARREL_SWITCH_PIN = 1;     // Barrel puck detection switch
+  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = A5;
+  constexpr uint8_t TOP_BARREL_SWITCH_PIN = 1;
 
   // SPI CS Pins
   constexpr uint8_t YAW_CHIP_SELECT_PIN = 8;
@@ -59,21 +59,26 @@ namespace Config
   // LEAD-SCREW CONFIGURATION
   // ==========================================================
 
-  constexpr float PUCK_HEIGHT_MM = 14.0f;
-  constexpr float BARREL_HEIGHT_MM = 273.0f;
-  constexpr uint8_t PUCK_COUNT = 17;
-  constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
+  // ==========================================================
+// LEAD-SCREW CONFIGURATION
+// ==========================================================
 
-  constexpr uint16_t LEAD_CURRENT_MA = 1200;
-  constexpr uint16_t LEAD_MICROSTEPS = 16;
-  constexpr float LEAD_STEPS_PER_MM = 100.8f;
-  constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
+constexpr float PUCK_HEIGHT_MM = 14.0f;
+constexpr float BARREL_HEIGHT_MM = 273.0f;
+constexpr uint8_t PUCK_COUNT = 17;
+constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
 
-  constexpr MotionProfile LEAD_PROFILE = {
-    2200,
-    1200,
-    180
-  };
+constexpr uint16_t LEAD_CURRENT_MA = 1200;
+constexpr uint16_t LEAD_MICROSTEPS = 16;
+constexpr float LEAD_STEPS_PER_MM = 100.8f;
+constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
+
+// Matches the speed used by the working standalone program
+constexpr MotionProfile LEAD_PROFILE = {
+  1200,
+  1200,
+  0
+};;
 
   // ==========================================================
   // SERVO DEPLOYMENT SETTINGS
