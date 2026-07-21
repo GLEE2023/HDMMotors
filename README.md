@@ -86,53 +86,6 @@ For serial debugging, the default monitor settings are set to 115200 baud with n
 
 This project uses three TMC5160 stepper drivers and two hobby servos. The Nano pin mapping is defined in [include/Config.h](include/Config.h).
 
-### Wiring overview
-
-```text
-                 +----------------------+
-                 |   Arduino Nano      |
-                 |----------------------|
-                 | D2  -> Lead STEP     |
-                 | D3  -> Lead DIR      |
-                 | D4  -> Lead EN       |
-                 | D5  -> Barrel STEP   |
-                 | D6  -> Barrel DIR    |
-                 | D7  -> Barrel EN     |
-                 | A0  -> Yaw STEP      |
-                 | A1  -> Yaw DIR       |
-                 | A2  -> Yaw EN        |
-                 | D8  -> Yaw CS        |
-                 | D9  -> Barrel CS     |
-                 | D10 -> Lead CS       |
-                 +----------+-----------+
-                            |
-             +--------------+--------------+
-             |                             |
-      +------+-------+            +--------+--------+
-      | Lead Driver  |            | Barrel Driver  |
-      | TMC5160T     |            | TMC5160T       |
-      +------+-------+            +--------+--------+
-             |                             |
-             +--------------+--------------+
-                            |
-                     +------v------+
-                     | Yaw Driver  |
-                     | TMC5160T    |
-                     +-------------+
-
-+------------------+                 +------------------+
-| Left Servo      |                 | Right Servo     |
-| A3              |                 | A4              |
-+--------+---------+                 +--------+---------+
-         |                                         |
-         +------------------+----------------------+ 
-                            | 
-                 +----------v----------+
-                 | Servo Power / GND   |
-                 | shared with system  |
-                 +---------------------+
-```
-
 ### Stepper drivers
 
 | Function | Nano pin |
