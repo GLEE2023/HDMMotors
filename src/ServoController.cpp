@@ -16,6 +16,12 @@ void ServoController::begin() {
   );
 
   delay(200);
+
+  // re-apply the rest position so the servo library has a stable starting point
+  writeServos(
+    Config::LEFT_SERVO_REST,
+    Config::RIGHT_SERVO_REST
+  );
 }
 
 // Applies the requested servo angles after clamping them to the safe 0-180 degree range.
@@ -57,15 +63,15 @@ void ServoController::arm() {
   moveServosSmooth(Config::LEFT_SERVO_ARM, Config::RIGHT_SERVO_ARM);
 }
 
-// Executes a fast fire pulse and then eases the servos back to rest.
+// Executes the fire pulse from a known armed position so both servos respond reliably.
 void ServoController::fire() {
-  // Explosive Pinball Push into Flywheels (Bypasses slow interpolation)
-  writeServos(Config::LEFT_SERVO_FIRE, Config::RIGHT_SERVO_FIRE);
+  writeServos(Config::LEFT_SERVO_ARM, Config::RIGHT_SERVO_ARM);
+  delay(25);
 
+  writeServos(Config::LEFT_SERVO_FIRE, Config::RIGHT_SERVO_FIRE);
   delay(Config::SERVO_FIRE_HOLD_MS);
 
-  // Controlled return to rest position
-  moveServosSmooth(Config::LEFT_SERVO_REST, Config::RIGHT_SERVO_REST);
+  writeServos(Config::LEFT_SERVO_REST, Config::RIGHT_SERVO_REST);
 }
 
 // Prints the current servo angles for debugging and operator feedback.

@@ -82,8 +82,8 @@ namespace Config {
   constexpr int LEFT_SERVO_REST = 180;
   constexpr int RIGHT_SERVO_REST = 0;
 
-  constexpr int LEFT_SERVO_ARM = 135;
-  constexpr int RIGHT_SERVO_ARM = 45;
+  constexpr int LEFT_SERVO_ARM = 155;
+  constexpr int RIGHT_SERVO_ARM = 25;
 
   constexpr int LEFT_SERVO_FIRE = 60;
   constexpr int RIGHT_SERVO_FIRE = 120;
