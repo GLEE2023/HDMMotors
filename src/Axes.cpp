@@ -226,13 +226,11 @@ int Axes::getNearestBarrelIndex() const {
 }
 
 // Moves the barrel to a specific chamber index using the shortest valid rotation.
-void Axes::moveBarrelToIndex(int targetIndex)
-{
+void Axes::moveBarrelToIndex(int targetIndex) {
   if (
     targetIndex < 0 ||
     targetIndex >= Config::BARREL_POSITION_COUNT
-  )
-  {
+  ) {
     Serial.print(F("Barrel index must be between 0 and "));
     Serial.print(Config::BARREL_POSITION_COUNT - 1);
     Serial.println(F("."));

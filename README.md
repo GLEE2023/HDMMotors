@@ -1,33 +1,137 @@
-# Three TMC5160 Motors + Dual Deployment Servos
+# HDM Motors puck delivery controller
 
-PlatformIO project for an Arduino Nano controlling:
+This project is a PlatformIO firmware for an Arduino Nano that controls a small puck-delivery mechanism. It combines three stepper motors, two firing servos, and a simple serial command interface so the system can be operated manually or through a higher-level controller.
 
-1. Lead-screw puck lift using millimeter-based target positions
-2. Rotating barrel indexer using exact step counts
-3. Precision yaw track from -30 to +30 degrees
-4. Two deployment servos with reset, arm, and fire commands
+The firmware is organized around four main behaviors:
 
-The barrel-index and yaw movement logic from the precision-yaw project remains unchanged.
+1. A lead-screw elevator that raises and lowers pucks to different levels.
+2. A rotating barrel indexer that selects the next chamber to fire from.
+3. A yaw axis that can aim the firing direction over a limited range.
+4. Two deployment servos that reset, arm, and fire the puck.
 
-## PlatformIO
+## What the project is for
 
-Open this folder in VS Code with PlatformIO and upload the `nanoatmega328` environment.
+This firmware is meant to drive a mechanical puck launcher with a single-button fire workflow, but it also supports manual control over serial. In practice, the system can:
 
-The Serial Monitor speed is:
+- detect whether a puck is present at the firing position
+- fire one puck at a time
+- advance the lead screw for the next puck level
+- rotate the barrel to the next chamber
+- return the elevator to the bottom reference position
+- report the current state of the motors and servos
+
+## Project layout
+
+The repository is split into a small set of source and header files:
+
+- [src/main.cpp](src/main.cpp): top-level serial command parser and startup/loop logic
+- [src/Axes.cpp](src/Axes.cpp): control logic for lead screw, barrel, and yaw movement
+- [src/StepperController.cpp](src/StepperController.cpp): low-level TMC5160 driver setup and step pulse generation
+- [src/ServoController.cpp](src/ServoController.cpp): servo reset/arm/fire behavior
+- [include/Config.h](include/Config.h): hardware pins, motion profiles, servo angles, and mechanical constants
+
+## Quick start
+
+1. Install PlatformIO and open this folder in VS Code.
+2. Connect the Arduino Nano to USB.
+3. Build and upload the `nanoatmega328` environment from [platformio.ini](platformio.ini).
+4. Open the serial monitor at 115200 baud.
+5. Try a simple command such as `e` to arm the servos or `C` to print the current system status.
+
+The firmware targets an Arduino Nano-compatible board and uses the following PlatformIO settings:
+
+### Architecture overview
 
 ```text
-115200 baud
++----------------------+
+|   Arduino Nano      |
+|----------------------|
+| Serial Commands      |
+|  - parse/dispatch    |
+|  - status reporting  |
++----------+-----------+
+           |
+           +---------------------------+
+           |                           |
++----------v----------+    +--------v---------+
+| Stepper Controller  |    | Servo Controller |
+| - TMC5160 drivers   |    | - reset/arm/fire |
+| - step generation   |    +------------------+
++----------+----------+
+           |
++----------v----------+
+| Axes Controller     |
+| - lead screw        |
+| - barrel indexer    |
+| - yaw axis          |
++---------------------+
 ```
 
-Libraries are installed through `platformio.ini`:
-
 ```ini
+[env:nanoatmega328]
+platform = atmelavr
+board = nanoatmega328new
+framework = arduino
+
+monitor_speed = 115200
+
 lib_deps =
     teemuatlut/TMCStepper
     arduino-libraries/Servo
 ```
 
-## Pin map
+For serial debugging, the default monitor settings are set to 115200 baud with newline handling enabled.
+
+## Hardware overview and pinout
+
+This project uses three TMC5160 stepper drivers and two hobby servos. The Nano pin mapping is defined in [include/Config.h](include/Config.h).
+
+### Wiring overview
+
+```text
+                 +----------------------+
+                 |   Arduino Nano      |
+                 |----------------------|
+                 | D2  -> Lead STEP     |
+                 | D3  -> Lead DIR      |
+                 | D4  -> Lead EN       |
+                 | D5  -> Barrel STEP   |
+                 | D6  -> Barrel DIR    |
+                 | D7  -> Barrel EN     |
+                 | A0  -> Yaw STEP      |
+                 | A1  -> Yaw DIR       |
+                 | A2  -> Yaw EN        |
+                 | D8  -> Yaw CS        |
+                 | D9  -> Barrel CS     |
+                 | D10 -> Lead CS       |
+                 +----------+-----------+
+                            |
+             +--------------+--------------+
+             |                             |
+      +------+-------+            +--------+--------+
+      | Lead Driver  |            | Barrel Driver  |
+      | TMC5160T     |            | TMC5160T       |
+      +------+-------+            +--------+--------+
+             |                             |
+             +--------------+--------------+
+                            |
+                     +------v------+
+                     | Yaw Driver  |
+                     | TMC5160T    |
+                     +-------------+
+
++------------------+                 +------------------+
+| Left Servo      |                 | Right Servo     |
+| A3              |                 | A4              |
++--------+---------+                 +--------+---------+
+         |                                         |
+         +------------------+----------------------+ 
+                            | 
+                 +----------v----------+
+                 | Servo Power / GND   |
+                 | shared with system  |
+                 +---------------------+
+```
 
 ### Stepper drivers
 
@@ -51,138 +155,86 @@ lib_deps =
 
 ### Servos
 
-The original servo sketch used D3 and D4, but those pins are already used by the lead-screw driver. The integrated project uses:
-
 | Servo | Nano pin |
 |---|---:|
 | Left servo signal | A3 |
 | Right servo signal | A4 |
 
-A3 and A4 are used as digital servo signal pins.
+The servos should be powered from a suitable external 5 V supply, not from the Nano regulator. The servo ground and the Nano/driver ground should be connected together.
 
-Power the servos from a suitable external regulated supply rather than from the Nano regulator. Connect the servo supply ground to the Nano/driver ground.
+## Important configuration values
 
-## Lead-screw easy configuration
+Most of the machine behavior is controlled from [include/Config.h](include/Config.h). The values you are most likely to adjust are:
 
-The normal lead-screw settings are grouped at the top of `include/Config.h`:
+- `PUCK_HEIGHT_MM`: the vertical spacing between puck levels
+- `BARREL_HEIGHT_MM`: the overall travel height of the lead screw
+- `PUCK_COUNT`: how many puck levels the system understands
+- `FIRST_PUCK_EXTRA_OFFSET_MM`: the extra offset applied before the first puck level
+- `LEAD_STEPS_PER_MM`: the step-per-millimeter calibration for the lead screw
+- `BARREL_POSITION_COUNT`: how many barrel indexes exist
+- `YAW_MINIMUM_DEGREES` and `YAW_MAXIMUM_DEGREES`: the allowed yaw range
+- servo angle constants such as `LEFT_SERVO_REST`, `LEFT_SERVO_ARM`, and `LEFT_SERVO_FIRE`
 
-```cpp
-constexpr float PUCK_HEIGHT_MM = 14.0f;
-constexpr float BARREL_HEIGHT_MM = 273.0f;
-constexpr uint8_t PUCK_COUNT = 17;
-constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
-```
+The lead-screw calibration is especially important. The current value is a starting point and should be adjusted if the real motion does not match the commanded motion.
 
-Deployment target positions are calculated as:
+## Motion and behavior notes
 
-```text
-level 0 = 0 mm
-level 1 = offset + 1 puck = 5 + 14 = 19 mm
-level 2 = offset + 2 pucks = 33 mm
-...
-level 17 = offset + 17 pucks = 243 mm
-```
+A few behaviors are worth knowing before using the machine:
 
-The `A` command is separate and moves to the full mechanical barrel height of 273 mm.
+- The elevator is tracked in terms of puck levels and also in physical step position.
+- The barrel is treated as a circular indexer, so movement is optimized to take the shortest route to the requested chamber.
+- The yaw axis is limited to a mechanical range and is clamped to that range when commands are issued.
+- The servo motion is smooth by default, and the fire action briefly holds the fire position before returning to rest.
+- The firmware assumes the system is already roughly homed at startup: the lead screw starts at the bottom, the barrel at index 0, and yaw at 0 degrees.
 
-### Steps-per-millimeter calibration
+## Serial command reference
 
-Millimeters must still be converted to electrical STEP pulses. The project starts with:
+The firmware listens for commands over the serial port at 115200 baud. Commands are processed when a newline is received.
 
-```cpp
-constexpr float LEAD_STEPS_PER_MM = 100.8f;
-```
+### General commands
 
-This was derived from the previous estimate of approximately 1512 pulses for 15 mm. It is a starting value, not a guaranteed mechanical calibration.
+| Command | Purpose |
+|---|---|
+| `F` or `f` | Run one full puck deployment cycle if a puck is present |
+| `H`, `h`, or `?` | Print the available commands |
+| `C` | Print the current status of the axes and servos |
+| `X` | Disable all stepper drivers |
 
-To recalibrate:
+### Servo commands
 
-1. Command a known movement.
-2. Measure the real movement in millimeters.
-3. Calculate:
+| Command | Purpose |
+|---|---|
+| `w` | Reset servos to the rest position |
+| `e` | Move servos to the armed position |
+| `p` | Fire once and return to rest |
 
-```text
-new steps/mm = commanded steps / measured millimeters
-```
+### Lead-screw commands
 
-After this one hardware calibration, puck height, barrel height, puck count, and first-puck offset are the routine settings.
+| Command | Purpose |
+|---|---|
+| `W` | Raise the elevator by one puck level |
+| `S` | Lower the elevator by one puck level |
+| `A` | Move the lead screw to the full top position |
+| `D` | Move the lead screw back to the bottom reference |
+| `L` | Treat the current physical position as the new bottom reference |
 
-## Servo behavior
+### Barrel commands
 
-The integrated servo movement is the same as the standalone sketch:
+| Command | Purpose |
+|---|---|
+| `N` | Move the barrel to the next chamber index |
+| `P` | Move the barrel to the previous chamber index |
+| `I5` | Move the barrel directly to chamber index 5 |
+| `O` | Set the current barrel position as index 0 |
 
-| State | Left servo | Right servo |
-|---|---:|---:|
-| Rest | 180° | 0° |
-| Arm | 135° | 45° |
-| Fire | 60° | 120° |
+### Yaw commands
 
-Both servos move in 2° increments with a 10 ms delay. Fire holds for 250 ms and then returns to rest.
+| Command | Purpose |
+|---|---|
+| `Y12.5` | Move to an absolute yaw angle in degrees |
+| `R0.25` | Move by a relative yaw angle in degrees |
+| `Z` | Set the current yaw position as zero |
 
-## Serial commands
+## Notes for new users
 
-Commands are case-sensitive where noted because the original servo controls conflict with existing stepper commands.
-
-### Deployment servos — lowercase
-
-```text
-w       Reset servos
-e       Arm servos
-p       Fire and return to rest
-```
-
-### Lead screw — uppercase
-
-```text
-W       Raise the next puck level
-S       Lower to the previous puck level
-A       Move to full mechanical top, 273 mm
-D       Move to bottom and restore puck level 0
-L       Treat the current physical position as bottom
-```
-
-The first `W` movement goes to 19 mm. Every later `W` advances one 14 mm puck level, up to level 17.
-
-After `A`, the controller marks the puck level as unknown because 273 mm is not a normal puck level. Run `D` or physically home the mechanism and use `L` before using `W` or `S` again.
-
-### Barrel indexer — unchanged
-
-```text
-N       Next index
-P       Previous index
-I5      Move to index 5
-O       Set current barrel location as index 0
-```
-
-The barrel index count remains unchanged at 16 in this revision.
-
-### Precision yaw — unchanged
-
-```text
-Y12.345 Absolute yaw angle
-R0.025  Relative yaw movement
-Q1      Move one configured yaw microstep
-K       Release yaw holding torque
-Z       Set current yaw position as zero
-```
-
-### General
-
-```text
-C       Print stepper and servo positions
-X       Disable all stepper drivers
-H, h, ? Print command help
-```
-
-Commands containing a number (`I`, `Y`, `R`, and `Q`) must be followed by a newline.
-
-## Startup assumptions
-
-The controller does not yet have homing sensors or encoders. At startup it assumes:
-
-- Lead screw is at the bottom
-- Barrel is at index 0
-- Yaw is at 0 degrees
-- Servos begin at their rest positions
-
-If a stepper stalls, skips pulses, or is moved while disabled, its software position will no longer match its physical position.
+The firmware does not currently use encoders or automatic homing sensors. If the mechanism is moved by hand, stalls, skips steps, or is changed while a motor is disabled, the software position can become inaccurate. In that case, the physical position should be re-established with the appropriate `L`, `O`, or `Z` command.

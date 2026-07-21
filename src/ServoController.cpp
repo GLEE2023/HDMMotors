@@ -3,12 +3,10 @@
 ServoController::ServoController()
   : leftAngle(Config::LEFT_SERVO_REST),
     rightAngle(Config::RIGHT_SERVO_REST)
-{
-}
+{}
 
 // Initializes both servos and places them into their resting state on startup.
-void ServoController::begin()
-{
+void ServoController::begin() {
   leftServo.attach(Config::LEFT_SERVO_PIN);
   rightServo.attach(Config::RIGHT_SERVO_PIN);
 
@@ -21,8 +19,7 @@ void ServoController::begin()
 }
 
 // Applies the requested servo angles after clamping them to the safe 0-180 degree range.
-void ServoController::writeServos(int left, int right)
-{
+void ServoController::writeServos(int left, int right) {
   leftAngle = constrain(left, 0, 180);
   rightAngle = constrain(right, 0, 180);
 
@@ -31,13 +28,11 @@ void ServoController::writeServos(int left, int right)
 }
 
 // Moves each servo in small increments so the motion looks smoother than a single jump.
-void ServoController::moveServosSmooth(int targetLeft, int targetRight)
-{
+void ServoController::moveServosSmooth(int targetLeft, int targetRight) {
   const int step = Config::SERVO_ANGLE_STEP;
   const unsigned long wait = Config::SERVO_STEP_DELAY_MS;
 
-  while (leftAngle != targetLeft || rightAngle != targetRight)
-  {
+  while (leftAngle != targetLeft || rightAngle != targetRight) {
     if (leftAngle < targetLeft) leftAngle += step;
     else if (leftAngle > targetLeft) leftAngle -= step;
 
@@ -53,20 +48,17 @@ void ServoController::moveServosSmooth(int targetLeft, int targetRight)
 }
 
 // Returns the servos to their resting angles.
-void ServoController::reset()
-{
+void ServoController::reset() {
   moveServosSmooth(Config::LEFT_SERVO_REST, Config::RIGHT_SERVO_REST);
 }
 
 // Moves the servos into the armed position before a firing command.
-void ServoController::arm()
-{
+void ServoController::arm() {
   moveServosSmooth(Config::LEFT_SERVO_ARM, Config::RIGHT_SERVO_ARM);
 }
 
 // Executes a fast fire pulse and then eases the servos back to rest.
-void ServoController::fire()
-{
+void ServoController::fire() {
   // Explosive Pinball Push into Flywheels (Bypasses slow interpolation)
   writeServos(Config::LEFT_SERVO_FIRE, Config::RIGHT_SERVO_FIRE);
 
@@ -77,8 +69,7 @@ void ServoController::fire()
 }
 
 // Prints the current servo angles for debugging and operator feedback.
-void ServoController::printStatus(Stream &output) const
-{
+void ServoController::printStatus(Stream &output) const {
   output.print(F("Left servo: "));
   output.print(leftAngle);
   output.print(F("  Right servo: "));

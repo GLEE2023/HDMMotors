@@ -4,12 +4,10 @@ StepperController::StepperController()
   : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE),
     barrelDriver(Config::BARREL_CHIP_SELECT_PIN, Config::R_SENSE),
     yawDriver(Config::YAW_CHIP_SELECT_PIN, Config::R_SENSE)
-{
-}
+{}
 
 // Initializes all GPIO pins, SPI, and TMC5160 driver settings for the motion system.
-void StepperController::begin()
-{
+void StepperController::begin() {
   pinMode(Config::LEAD_STEP_PIN, OUTPUT);
   pinMode(Config::LEAD_DIRECTION_PIN, OUTPUT);
   pinMode(Config::LEAD_ENABLE_PIN, OUTPUT);
@@ -70,8 +68,7 @@ void StepperController::configureDriver(
   TMC5160Stepper &driver,
   uint16_t currentMilliamps,
   uint16_t microsteps
-)
-{
+) {
   driver.begin();
   driver.toff(5);
   driver.rms_current(currentMilliamps);
@@ -82,8 +79,7 @@ void StepperController::configureDriver(
 }
 
 // Disables every motor output stage and leaves each step line low to avoid accidental motion.
-void StepperController::disableAllMotors()
-{
+void StepperController::disableAllMotors() {
   // Keep every STEP line low while the motors are inactive.
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
   digitalWrite(Config::BARREL_STEP_PIN, LOW);
@@ -98,10 +94,8 @@ void StepperController::disableAllMotors()
 }
 
 // Maps a logical motor identity to its step-control pin.
-uint8_t StepperController::getStepPin(Config::MotorId motor) const
-{
-  switch (motor)
-  {
+uint8_t StepperController::getStepPin(Config::MotorId motor) const {
+  switch (motor) {
     case Config::MotorId::LeadScrew:
       return Config::LEAD_STEP_PIN;
 
@@ -118,10 +112,8 @@ uint8_t StepperController::getStepPin(Config::MotorId motor) const
 }
 
 // Maps a logical motor identity to its direction-control pin.
-uint8_t StepperController::getDirectionPin(Config::MotorId motor) const
-{
-  switch (motor)
-  {
+uint8_t StepperController::getDirectionPin(Config::MotorId motor) const {
+  switch (motor) {
     case Config::MotorId::LeadScrew:
       return Config::LEAD_DIRECTION_PIN;
 
@@ -138,10 +130,8 @@ uint8_t StepperController::getDirectionPin(Config::MotorId motor) const
 }
 
 // Maps a logical motor identity to its enable-control pin.
-uint8_t StepperController::getEnablePin(Config::MotorId motor) const
-{
-  switch (motor)
-  {
+uint8_t StepperController::getEnablePin(Config::MotorId motor) const {
+  switch (motor) {
     case Config::MotorId::LeadScrew:
       return Config::LEAD_ENABLE_PIN;
 
@@ -158,29 +148,24 @@ uint8_t StepperController::getEnablePin(Config::MotorId motor) const
 }
 
 // Disables one motor without changing the state of the other axes.
-void StepperController::disableMotor(Config::MotorId motor)
-{
+void StepperController::disableMotor(Config::MotorId motor) {
   uint8_t stepPin = getStepPin(motor);
   uint8_t enablePin = getEnablePin(motor);
 
-  if (stepPin != 255)
-  {
+  if (stepPin != 255) {
     digitalWrite(stepPin, LOW);
   }
 
-  if (enablePin != 255)
-  {
+  if (enablePin != 255) {
     digitalWrite(enablePin, HIGH);
   }
 }
 
 // Enables one motor and waits briefly for the driver to settle before sending steps.
-void StepperController::enableMotor(Config::MotorId motor)
-{
+void StepperController::enableMotor(Config::MotorId motor) {
   uint8_t enablePin = getEnablePin(motor);
 
-  if (enablePin != 255)
-  {
+  if (enablePin != 255) {
     digitalWrite(enablePin, LOW);
     delay(Config::ENABLE_SETTLE_TIME_MS);
   }
@@ -190,27 +175,23 @@ uint16_t StepperController::calculatePulseDelay(
   unsigned long stepNumber,
   unsigned long totalSteps,
   const Config::MotionProfile &profile
-) const
-{
+) const {
   if (
     profile.accelerationSteps == 0 ||
     profile.startingDelayUs <= profile.cruiseDelayUs ||
     totalSteps < 2
-  )
-  {
+  ) {
     return profile.cruiseDelayUs;
   }
 
   unsigned long rampSteps = profile.accelerationSteps;
   unsigned long halfMovement = totalSteps / 2UL;
 
-  if (rampSteps > halfMovement)
-  {
+  if (rampSteps > halfMovement) {
     rampSteps = halfMovement;
   }
 
-  if (rampSteps == 0)
-  {
+  if (rampSteps == 0) {
     return profile.cruiseDelayUs;
   }
 
@@ -218,13 +199,11 @@ uint16_t StepperController::calculatePulseDelay(
   unsigned long distanceFromEnd = totalSteps - stepNumber - 1UL;
   unsigned long distanceFromNearestEnd = distanceFromStart;
 
-  if (distanceFromEnd < distanceFromNearestEnd)
-  {
+  if (distanceFromEnd < distanceFromNearestEnd) {
     distanceFromNearestEnd = distanceFromEnd;
   }
 
-  if (distanceFromNearestEnd >= rampSteps)
-  {
+  if (distanceFromNearestEnd >= rampSteps) {
     return profile.cruiseDelayUs;
   }
 
@@ -242,32 +221,26 @@ uint16_t StepperController::calculatePulseDelay(
 }
 
 // Checks for an incoming emergency-stop command from the serial stream.
-bool StepperController::emergencyStopRequested()
-{
-  if (Serial.available() <= 0)
-  {
+bool StepperController::emergencyStopRequested() {
+  if (Serial.available() <= 0) {
     return false;
   }
 
   char incomingCharacter = (char)Serial.peek();
 
-  if (incomingCharacter != 'x' && incomingCharacter != 'X')
-  {
+  if (incomingCharacter != 'x' && incomingCharacter != 'X') {
     return false;
   }
 
   Serial.read();
 
-  while (Serial.available() > 0)
-  {
+  while (Serial.available() > 0) {
     char leftover = (char)Serial.peek();
 
-    if (leftover == '\r' || leftover == '\n')
-    {
+    if (leftover == '\r' || leftover == '\n') {
       Serial.read();
     }
-    else
-    {
+    else {
       break;
     }
   }
@@ -285,18 +258,15 @@ long StepperController::moveSteps(
   bool positiveDirectionLevel,
   const Config::MotionProfile &profile,
   bool keepEnabledAfterMove
-)
-{
-  if (motor == Config::MotorId::None || signedSteps == 0)
-  {
+) {
+  if (motor == Config::MotorId::None || signedSteps == 0) {
     return 0;
   }
 
   uint8_t stepPin = getStepPin(motor);
   uint8_t directionPin = getDirectionPin(motor);
 
-  if (stepPin == 255 || directionPin == 255)
-  {
+  if (stepPin == 255 || directionPin == 255) {
     return 0;
   }
 
@@ -324,12 +294,9 @@ long StepperController::moveSteps(
     unsigned long stepNumber = 0;
     stepNumber < totalSteps;
     stepNumber++
-  )
-  {
-    if ((stepNumber & 0x0FUL) == 0UL)
-    {
-      if (emergencyStopRequested())
-      {
+  ) {
+    if ((stepNumber & 0x0FUL) == 0UL) {
+      if (emergencyStopRequested()) {
         break;
       }
     }
@@ -351,13 +318,11 @@ long StepperController::moveSteps(
 
   digitalWrite(stepPin, LOW);
 
-  if (!keepEnabledAfterMove)
-  {
+  if (!keepEnabledAfterMove) {
     disableMotor(motor);
   }
 
-  if (movingPositive)
-  {
+  if (movingPositive) {
     return (long)completedSteps;
   }
 
@@ -365,8 +330,7 @@ long StepperController::moveSteps(
 }
 
 // Prints the SPI connection test results for each TMC5160 driver.
-void StepperController::printConnectionTests(Stream &output)
-{
+void StepperController::printConnectionTests(Stream &output) {
   output.println();
   output.println(F("TMC5160 SPI connection tests:"));
 
