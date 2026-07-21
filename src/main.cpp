@@ -14,57 +14,52 @@ ServoController servoController;
 char commandBuffer[32];
 uint8_t commandLength = 0;
 
-void setupSwitches()
-{
+// Configures the limit and barrel-presence switches used by the control logic.
+void setupSwitches() {
   pinMode(Config::BOTTOM_LIMIT_SWITCH_PIN, INPUT_PULLUP);
   pinMode(Config::TOP_BARREL_SWITCH_PIN, INPUT_PULLUP);
 }
 
-bool isPuckInBarrel()
-{
+// Returns true when the barrel switch indicates that a puck is sitting at the firing position.
+bool isPuckInBarrel() {
   // Assumes ACTIVE LOW switch setup (grounded when closed/triggered)
   return digitalRead(Config::TOP_BARREL_SWITCH_PIN) == LOW;
 }
 
-bool isElevatorAtBottom()
-{
+// Returns true when the elevator has reached the lower limit switch.
+bool isElevatorAtBottom() {
   return digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
 }
 
-const char *skipCommandSeparators(const char *text)
-{
-  while (*text == ' ' || *text == '\t' || *text == ':' || *text == '=')
-  {
+// Advances past common command separators so numeric values can be parsed cleanly.
+const char *skipCommandSeparators(const char *text) {
+  while (*text == ' ' || *text == '\t' || *text == ':' || *text == '=') {
     text++;
   }
 
   return text;
 }
 
-bool parseLongValue(const char *text, long &value)
-{
+// Parses a signed integer from the command text after trimming separators.
+bool parseLongValue(const char *text, long &value) {
   text = skipCommandSeparators(text);
 
-  if (*text == '\0')
-  {
+  if (*text == '\0') {
     return false;
   }
 
   char *endPointer = nullptr;
   long parsedValue = strtol(text, &endPointer, 10);
 
-  if (endPointer == text)
-  {
+  if (endPointer == text) {
     return false;
   }
 
-  while (*endPointer == ' ' || *endPointer == '\t')
-  {
+  while (*endPointer == ' ' || *endPointer == '\t') {
     endPointer++;
   }
 
-  if (*endPointer != '\0')
-  {
+  if (*endPointer != '\0') {
     return false;
   }
 
@@ -72,30 +67,26 @@ bool parseLongValue(const char *text, long &value)
   return true;
 }
 
-bool parseFloatValue(const char *text, float &value)
-{
+// Parses a floating-point value from the command text after trimming separators.
+bool parseFloatValue(const char *text, float &value) {
   text = skipCommandSeparators(text);
 
-  if (*text == '\0')
-  {
+  if (*text == '\0') {
     return false;
   }
 
   char *endPointer = nullptr;
   double parsedValue = strtod(text, &endPointer);
 
-  if (endPointer == text)
-  {
+  if (endPointer == text) {
     return false;
   }
 
-  while (*endPointer == ' ' || *endPointer == '\t')
-  {
+  while (*endPointer == ' ' || *endPointer == '\t') {
     endPointer++;
   }
 
-  if (*endPointer != '\0')
-  {
+  if (*endPointer != '\0') {
     return false;
   }
 
@@ -103,8 +94,8 @@ bool parseFloatValue(const char *text, float &value)
   return true;
 }
 
-void printCommands()
-{
+// Prints the serial command help text for operator use.
+void printCommands() {
   Serial.println();
   Serial.println(F("========== COMMANDS =========="));
   Serial.println(F("  F / f   Fire one puck if present"));
@@ -125,12 +116,11 @@ void printCommands()
   Serial.println(F("=============================="));
 }
 
-void executeSinglePuckCycle()
-{
+// Runs one complete fire sequence: detect a puck, fire it, advance the system, and return home.
+void executeSinglePuckCycle() {
   Serial.println(F("--- STARTING SINGLE PUCK DEPLOYMENT ---"));
 
-  if (!isPuckInBarrel())
-  {
+  if (!isPuckInBarrel()) {
     Serial.println(F("No puck detected at the firing position. Skipping this cycle."));
     return;
   }
@@ -141,13 +131,11 @@ void executeSinglePuckCycle()
   Serial.println(F("Raising lead screw for the next puck..."));
   bool raised = axes.moveLeadUpOnePuck();
 
-  if (raised)
-  {
+  if (raised) {
     Serial.println(F("Advancing barrel to the next chamber..."));
     axes.moveBarrelToNextIndex();
   }
-  else
-  {
+  else {
     Serial.println(F("No additional puck level available. Returning elevator to bottom position..."));
   }
 
@@ -155,28 +143,24 @@ void executeSinglePuckCycle()
   axes.moveLeadToBottom();
 }
 
-void processCommand(const char *command)
-{
-  while (*command == ' ' || *command == '\t')
-  {
+// Parses a single incoming command and sends it to the correct motion or servo action.
+void processCommand(const char *command) {
+  while (*command == ' ' || *command == '\t') {
     command++;
   }
 
-  if (*command == '\0')
-  {
+  if (*command == '\0') {
     return;
   }
 
   char cmd = command[0];
 
-  if (cmd == 'F' || cmd == 'f')
-  {
+  if (cmd == 'F' || cmd == 'f') {
     executeSinglePuckCycle();
     return;
   }
 
-  if (cmd == 'H' || cmd == 'h' || cmd == '?')
-  {
+  if (cmd == 'H' || cmd == 'h' || cmd == '?') {
     printCommands();
     return;
   }
@@ -188,8 +172,7 @@ void processCommand(const char *command)
   char commandLetter = (char)toupper((unsigned char)cmd);
   const char *valueText = command + 1;
 
-  switch (commandLetter)
-  {
+  switch (commandLetter) {
     case 'W': axes.moveLeadUpOnePuck(); break;
     case 'S': axes.moveLeadDownOnePuck(); break;
     case 'A': axes.moveLeadToTop(); break;
@@ -201,8 +184,7 @@ void processCommand(const char *command)
     case 'I':
     {
       long requestedIndex = 0;
-      if (!parseLongValue(valueText, requestedIndex))
-      {
+      if (!parseLongValue(valueText, requestedIndex)) {
         Serial.println(F("Invalid index. Example: I5"));
         break;
       }
@@ -215,8 +197,7 @@ void processCommand(const char *command)
     case 'Y':
     {
       float requestedAngle = 0.0f;
-      if (!parseFloatValue(valueText, requestedAngle))
-      {
+      if (!parseFloatValue(valueText, requestedAngle)) {
         Serial.println(F("Invalid yaw angle. Example: Y12.5"));
         break;
       }
@@ -227,8 +208,7 @@ void processCommand(const char *command)
     case 'R':
     {
       float requestedMovement = 0.0f;
-      if (!parseFloatValue(valueText, requestedMovement))
-      {
+      if (!parseFloatValue(valueText, requestedMovement)) {
         Serial.println(F("Invalid relative yaw. Example: R0.25"));
         break;
       }
@@ -259,31 +239,28 @@ void processCommand(const char *command)
   }
 }
 
-void readSerialCommands()
-{
-  while (Serial.available() > 0)
-  {
+// Collects incoming serial bytes into a temporary buffer until a full command line is received.
+void readSerialCommands() {
+  while (Serial.available() > 0) {
     char incomingCharacter = (char)Serial.read();
 
-    if (incomingCharacter == '\r') continue;
+    if (incomingCharacter == '\r') continue; // ignore carriage returns
 
-    if (incomingCharacter == '\n')
-    {
+    if (incomingCharacter == '\n') {
       commandBuffer[commandLength] = '\0';
       if (commandLength > 0) processCommand(commandBuffer);
       commandLength = 0;
       continue;
     }
 
-    if (commandLength < sizeof(commandBuffer) - 1)
-    {
+    if (commandLength < sizeof(commandBuffer) - 1) {
       commandBuffer[commandLength++] = incomingCharacter;
     }
   }
 }
 
-void setup()
-{
+// Initializes serial communication, input switches, motion drivers, and servos at startup.
+void setup() {
   Serial.begin(Config::SERIAL_BAUD);
 
   setupSwitches();
@@ -294,7 +271,7 @@ void setup()
   printCommands();
 }
 
-void loop()
-{
+// Keeps polling the serial input stream so new commands are handled continuously.
+void loop() {
   readSerialCommands();
 }

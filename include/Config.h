@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-namespace Config
-{
+// Shared hardware constants and motion settings for the whole firmware.
+namespace Config {
   // ==========================================================
   // GENERAL TMC5160 SETTINGS
   // ==========================================================
@@ -40,16 +40,16 @@ namespace Config
   constexpr uint8_t DIRECTION_SETUP_TIME_US = 20;
   constexpr uint8_t ENABLE_SETTLE_TIME_MS = 2;
 
-  enum class MotorId : uint8_t
-  {
+  // Identifies the three motion axes so commands can target the correct motor.
+  enum class MotorId : uint8_t {
     None,
     LeadScrew,
     Barrel,
     Yaw
   };
 
-  struct MotionProfile
-  {
+  // Stores the timing values used to shape a stepper move profile.
+  struct MotionProfile {
     uint16_t startingDelayUs;
     uint16_t cruiseDelayUs;
     uint16_t accelerationSteps;
@@ -68,10 +68,10 @@ constexpr float BARREL_HEIGHT_MM = 273.0f;
 constexpr uint8_t PUCK_COUNT = 17;
 constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
 
-constexpr uint16_t LEAD_CURRENT_MA = 1200;
-constexpr uint16_t LEAD_MICROSTEPS = 16;
-constexpr float LEAD_STEPS_PER_MM = 100.8f;
-constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
+  constexpr uint16_t LEAD_CURRENT_MA = 1200;
+  constexpr uint16_t LEAD_MICROSTEPS = 16;
+  constexpr float LEAD_STEPS_PER_MM = 100.8f;
+  constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
 
 // Matches the speed used by the working standalone program
 constexpr MotionProfile LEAD_PROFILE = {
@@ -87,15 +87,15 @@ constexpr MotionProfile LEAD_PROFILE = {
   constexpr int LEFT_SERVO_REST = 180;
   constexpr int RIGHT_SERVO_REST = 0;
 
-  constexpr int LEFT_SERVO_ARM = 135;
-  constexpr int RIGHT_SERVO_ARM = 45;
+  constexpr int LEFT_SERVO_ARM = 145;
+  constexpr int RIGHT_SERVO_ARM = 35;
 
   constexpr int LEFT_SERVO_FIRE = 60;
   constexpr int RIGHT_SERVO_FIRE = 120;
 
   constexpr int SERVO_ANGLE_STEP = 5;
-  constexpr unsigned long SERVO_STEP_DELAY_MS = 5;
-  constexpr unsigned long SERVO_FIRE_HOLD_MS = 150;
+  constexpr unsigned long SERVO_STEP_DELAY_MS = 20;
+  constexpr unsigned long SERVO_FIRE_HOLD_MS = 300;
 
   // ==========================================================
   // BARREL & YAW SETTINGS
