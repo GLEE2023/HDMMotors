@@ -72,7 +72,7 @@ void StepperController::configureDriver(
   driver.begin();
   driver.toff(5);
   driver.rms_current(currentMilliamps);
-  driver.microsteps(microsteps);
+  driver.microsteps(microsteps == 1 ? 0 : microsteps);
 
   // false selects SpreadCycle through the TMCStepper API.
   driver.en_pwm_mode(false);

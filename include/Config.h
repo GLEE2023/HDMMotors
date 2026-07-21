@@ -65,8 +65,12 @@ namespace Config {
   constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
 
   constexpr uint16_t LEAD_CURRENT_MA = 1200;
-  constexpr uint16_t LEAD_MICROSTEPS = 16;
-  constexpr float LEAD_STEPS_PER_MM = 100.8f;
+  constexpr float LEAD_FULL_STEPS_PER_MM = 100.8f / 16.0f;
+  constexpr uint16_t LEAD_MICROSTEPS = 1;
+
+  constexpr float LEAD_STEPS_PER_MM =
+      LEAD_FULL_STEPS_PER_MM * LEAD_MICROSTEPS;
+      
   constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
 
   constexpr MotionProfile LEAD_PROFILE = {
