@@ -14,23 +14,27 @@ ServoController servoController;
 char commandBuffer[32];
 uint8_t commandLength = 0;
 
+// Configures the limit and barrel-presence switches used by the control logic.
 void setupSwitches()
 {
   pinMode(Config::BOTTOM_LIMIT_SWITCH_PIN, INPUT_PULLUP);
   pinMode(Config::TOP_BARREL_SWITCH_PIN, INPUT_PULLUP);
 }
 
+// Returns true when the barrel switch indicates that a puck is sitting at the firing position.
 bool isPuckInBarrel()
 {
   // Assumes ACTIVE LOW switch setup (grounded when closed/triggered)
   return digitalRead(Config::TOP_BARREL_SWITCH_PIN) == LOW;
 }
 
+// Returns true when the elevator has reached the lower limit switch.
 bool isElevatorAtBottom()
 {
   return digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
 }
 
+// Advances past common command separators so numeric values can be parsed cleanly.
 const char *skipCommandSeparators(const char *text)
 {
   while (*text == ' ' || *text == '\t' || *text == ':' || *text == '=')
@@ -41,6 +45,7 @@ const char *skipCommandSeparators(const char *text)
   return text;
 }
 
+// Parses a signed integer from the command text after trimming separators.
 bool parseLongValue(const char *text, long &value)
 {
   text = skipCommandSeparators(text);
@@ -72,6 +77,7 @@ bool parseLongValue(const char *text, long &value)
   return true;
 }
 
+// Parses a floating-point value from the command text after trimming separators.
 bool parseFloatValue(const char *text, float &value)
 {
   text = skipCommandSeparators(text);
@@ -103,6 +109,7 @@ bool parseFloatValue(const char *text, float &value)
   return true;
 }
 
+// Prints the serial command help text for operator use.
 void printCommands()
 {
   Serial.println();
@@ -125,6 +132,7 @@ void printCommands()
   Serial.println(F("=============================="));
 }
 
+// Runs one complete fire sequence: detect a puck, fire it, advance the system, and return home.
 void executeSinglePuckCycle()
 {
   Serial.println(F("--- STARTING SINGLE PUCK DEPLOYMENT ---"));
@@ -155,6 +163,7 @@ void executeSinglePuckCycle()
   axes.moveLeadToBottom();
 }
 
+// Parses a single incoming command and sends it to the correct motion or servo action.
 void processCommand(const char *command)
 {
   while (*command == ' ' || *command == '\t')
@@ -259,13 +268,14 @@ void processCommand(const char *command)
   }
 }
 
+// Collects incoming serial bytes into a temporary buffer until a full command line is received.
 void readSerialCommands()
 {
   while (Serial.available() > 0)
   {
     char incomingCharacter = (char)Serial.read();
 
-    if (incomingCharacter == '\r') continue;
+    if (incomingCharacter == '\r') continue; // ignore carriage returns
 
     if (incomingCharacter == '\n')
     {
@@ -282,6 +292,7 @@ void readSerialCommands()
   }
 }
 
+// Initializes serial communication, input switches, motion drivers, and servos at startup.
 void setup()
 {
   Serial.begin(Config::SERIAL_BAUD);
@@ -294,6 +305,7 @@ void setup()
   printCommands();
 }
 
+// Keeps polling the serial input stream so new commands are handled continuously.
 void loop()
 {
   readSerialCommands();

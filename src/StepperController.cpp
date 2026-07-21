@@ -7,6 +7,7 @@ StepperController::StepperController()
 {
 }
 
+// Initializes all GPIO pins, SPI, and TMC5160 driver settings for the motion system.
 void StepperController::begin()
 {
   pinMode(Config::LEAD_STEP_PIN, OUTPUT);
@@ -64,6 +65,7 @@ void StepperController::begin()
   disableAllMotors();
 }
 
+// Configures one TMC5160 driver with the requested current and microstep settings for this machine.
 void StepperController::configureDriver(
   TMC5160Stepper &driver,
   uint16_t currentMilliamps,
@@ -79,6 +81,7 @@ void StepperController::configureDriver(
   driver.en_pwm_mode(false);
 }
 
+// Disables every motor output stage and leaves each step line low to avoid accidental motion.
 void StepperController::disableAllMotors()
 {
   // Keep every STEP line low while the motors are inactive.
@@ -94,6 +97,7 @@ void StepperController::disableAllMotors()
   delayMicroseconds(Config::DIRECTION_SETUP_TIME_US);
 }
 
+// Maps a logical motor identity to its step-control pin.
 uint8_t StepperController::getStepPin(Config::MotorId motor) const
 {
   switch (motor)
@@ -113,6 +117,7 @@ uint8_t StepperController::getStepPin(Config::MotorId motor) const
   }
 }
 
+// Maps a logical motor identity to its direction-control pin.
 uint8_t StepperController::getDirectionPin(Config::MotorId motor) const
 {
   switch (motor)
@@ -132,6 +137,7 @@ uint8_t StepperController::getDirectionPin(Config::MotorId motor) const
   }
 }
 
+// Maps a logical motor identity to its enable-control pin.
 uint8_t StepperController::getEnablePin(Config::MotorId motor) const
 {
   switch (motor)
@@ -151,6 +157,7 @@ uint8_t StepperController::getEnablePin(Config::MotorId motor) const
   }
 }
 
+// Disables one motor without changing the state of the other axes.
 void StepperController::disableMotor(Config::MotorId motor)
 {
   uint8_t stepPin = getStepPin(motor);
@@ -167,6 +174,7 @@ void StepperController::disableMotor(Config::MotorId motor)
   }
 }
 
+// Enables one motor and waits briefly for the driver to settle before sending steps.
 void StepperController::enableMotor(Config::MotorId motor)
 {
   uint8_t enablePin = getEnablePin(motor);
@@ -233,6 +241,7 @@ uint16_t StepperController::calculatePulseDelay(
   );
 }
 
+// Checks for an incoming emergency-stop command from the serial stream.
 bool StepperController::emergencyStopRequested()
 {
   if (Serial.available() <= 0)
@@ -269,6 +278,7 @@ bool StepperController::emergencyStopRequested()
   return true;
 }
 
+// Sends a signed pulse train to the selected motor using the supplied motion profile.
 long StepperController::moveSteps(
   Config::MotorId motor,
   long signedSteps,
@@ -299,8 +309,7 @@ long StepperController::moveSteps(
     ? (unsigned long)signedSteps
     : (unsigned long)(-signedSteps);
 
-  // Only cycle the selected axis. Other independently wired axes may
-  // remain energized, allowing yaw to keep holding its deployment angle.
+  // only cycle the selected axis while leaving the others alone
   disableMotor(motor);
 
   digitalWrite(stepPin, LOW);
@@ -355,6 +364,7 @@ long StepperController::moveSteps(
   return -(long)completedSteps;
 }
 
+// Prints the SPI connection test results for each TMC5160 driver.
 void StepperController::printConnectionTests(Stream &output)
 {
   output.println();

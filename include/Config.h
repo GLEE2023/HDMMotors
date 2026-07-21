@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-namespace Config
-{
+// Shared hardware constants and motion settings for the whole firmware.
+namespace Config {
   // ==========================================================
   // GENERAL TMC5160 SETTINGS
   // ==========================================================
@@ -40,16 +40,16 @@ namespace Config
   constexpr uint8_t DIRECTION_SETUP_TIME_US = 20;
   constexpr uint8_t ENABLE_SETTLE_TIME_MS = 2;
 
-  enum class MotorId : uint8_t
-  {
+  // Identifies the three motion axes so commands can target the correct motor.
+  enum class MotorId : uint8_t {
     None,
     LeadScrew,
     Barrel,
     Yaw
   };
 
-  struct MotionProfile
-  {
+  // Stores the timing values used to shape a stepper move profile.
+  struct MotionProfile {
     uint16_t startingDelayUs;
     uint16_t cruiseDelayUs;
     uint16_t accelerationSteps;
