@@ -82,15 +82,15 @@ namespace Config {
   constexpr int LEFT_SERVO_REST = 180;
   constexpr int RIGHT_SERVO_REST = 0;
 
-  constexpr int LEFT_SERVO_ARM = 155;
-  constexpr int RIGHT_SERVO_ARM = 25;
+  constexpr int LEFT_SERVO_ARM = 145;
+  constexpr int RIGHT_SERVO_ARM = 35;
 
   constexpr int LEFT_SERVO_FIRE = 60;
   constexpr int RIGHT_SERVO_FIRE = 120;
 
   constexpr int SERVO_ANGLE_STEP = 5;
-  constexpr unsigned long SERVO_STEP_DELAY_MS = 5;
-  constexpr unsigned long SERVO_FIRE_HOLD_MS = 150;
+  constexpr unsigned long SERVO_STEP_DELAY_MS = 20;
+  constexpr unsigned long SERVO_FIRE_HOLD_MS = 300;
 
   // ==========================================================
   // BARREL & YAW SETTINGS

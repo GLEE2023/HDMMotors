@@ -38,7 +38,7 @@ void ServoController::moveServosSmooth(int targetLeft, int targetRight) {
   const int step = Config::SERVO_ANGLE_STEP;
   const unsigned long wait = Config::SERVO_STEP_DELAY_MS;
 
-  while (leftAngle != targetLeft || rightAngle != targetRight) {
+  while (leftAngle != targetLeft && rightAngle != targetRight) {
     if (leftAngle < targetLeft) leftAngle += step;
     else if (leftAngle > targetLeft) leftAngle -= step;
 
@@ -64,14 +64,22 @@ void ServoController::arm() {
 }
 
 // Executes the fire pulse from a known armed position so both servos respond reliably.
-void ServoController::fire() {
-  writeServos(Config::LEFT_SERVO_ARM, Config::RIGHT_SERVO_ARM);
-  delay(25);
+void ServoController::fire()
+{
+    // Move from the current position directly to fire.
+    moveServosSmooth(
+        Config::LEFT_SERVO_FIRE,
+        Config::RIGHT_SERVO_FIRE
+    );
 
-  writeServos(Config::LEFT_SERVO_FIRE, Config::RIGHT_SERVO_FIRE);
-  delay(Config::SERVO_FIRE_HOLD_MS);
+    // Give both servos time to complete the mechanical firing action.
+    delay(Config::SERVO_FIRE_HOLD_MS);
 
-  writeServos(Config::LEFT_SERVO_REST, Config::RIGHT_SERVO_REST);
+    // Return smoothly so neither servo receives a sudden reverse command.
+    moveServosSmooth(
+        Config::LEFT_SERVO_REST,
+        Config::RIGHT_SERVO_REST
+    );
 }
 
 // Prints the current servo angles for debugging and operator feedback.
