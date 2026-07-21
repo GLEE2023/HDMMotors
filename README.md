@@ -1,4 +1,4 @@
-# HDM Motors puck delivery controller
+# GLEE HDM Puck Delivery Controller
 
 This project is a PlatformIO firmware for an Arduino Nano that controls a small puck-delivery mechanism. It combines three stepper motors, two firing servos, and a simple serial command interface so the system can be operated manually or through a higher-level controller.
 
@@ -9,7 +9,7 @@ The firmware is organized around four main behaviors:
 3. A yaw axis that can aim the firing direction over a limited range.
 4. Two deployment servos that reset, arm, and fire the puck.
 
-## What the project is for
+## What the Project is For
 
 This firmware is meant to drive a mechanical puck launcher with a single-button fire workflow, but it also supports manual control over serial. In practice, the system can:
 
@@ -20,7 +20,7 @@ This firmware is meant to drive a mechanical puck launcher with a single-button 
 - return the elevator to the bottom reference position
 - report the current state of the motors and servos
 
-## Project layout
+## Project Layout
 
 The repository is split into a small set of source and header files:
 
@@ -30,7 +30,7 @@ The repository is split into a small set of source and header files:
 - [src/ServoController.cpp](src/ServoController.cpp): servo reset/arm/fire behavior
 - [include/Config.h](include/Config.h): hardware pins, motion profiles, servo angles, and mechanical constants
 
-## Quick start
+## Quick Start
 
 1. Install PlatformIO and open this folder in VS Code.
 2. Connect the Arduino Nano to USB.
@@ -40,7 +40,7 @@ The repository is split into a small set of source and header files:
 
 The firmware targets an Arduino Nano-compatible board and uses the following PlatformIO settings:
 
-### Architecture overview
+### Architecture Overview
 
 ```text
 +----------------------+
@@ -82,11 +82,11 @@ lib_deps =
 
 For serial debugging, the default monitor settings are set to 115200 baud with newline handling enabled.
 
-## Hardware overview and pinout
+## Hardware Overview and Pinout
 
 This project uses three TMC5160 stepper drivers and two hobby servos. The Nano pin mapping is defined in [include/Config.h](include/Config.h).
 
-### Stepper drivers
+### Stepper Drivers
 
 | Function | Nano pin |
 |---|---:|
@@ -115,7 +115,7 @@ This project uses three TMC5160 stepper drivers and two hobby servos. The Nano p
 
 The servos should be powered from a suitable external 5 V supply, not from the Nano regulator. The servo ground and the Nano/driver ground should be connected together.
 
-## Important configuration values
+## Important Configuration Values
 
 Most of the machine behavior is controlled from [include/Config.h](include/Config.h). The values you are most likely to adjust are:
 
@@ -130,7 +130,7 @@ Most of the machine behavior is controlled from [include/Config.h](include/Confi
 
 The lead-screw calibration is especially important. The current value is a starting point and should be adjusted if the real motion does not match the commanded motion.
 
-## Motion and behavior notes
+## Motion and Behavior Notes
 
 A few behaviors are worth knowing before using the machine:
 
@@ -140,11 +140,11 @@ A few behaviors are worth knowing before using the machine:
 - The servo motion is smooth by default, and the fire action briefly holds the fire position before returning to rest.
 - The firmware assumes the system is already roughly homed at startup: the lead screw starts at the bottom, the barrel at index 0, and yaw at 0 degrees.
 
-## Serial command reference
+## Serial Command Reference
 
 The firmware listens for commands over the serial port at 115200 baud. Commands are processed when a newline is received.
 
-### General commands
+### General Commands
 
 | Command | Purpose |
 |---|---|
@@ -153,7 +153,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `C` | Print the current status of the axes and servos |
 | `X` | Disable all stepper drivers |
 
-### Servo commands
+### Servo Commands
 
 | Command | Purpose |
 |---|---|
@@ -161,7 +161,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `e` | Move servos to the armed position |
 | `p` | Fire once and return to rest |
 
-### Lead-screw commands
+### Lead-Screw Commands
 
 | Command | Purpose |
 |---|---|
@@ -171,7 +171,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `D` | Move the lead screw back to the bottom reference |
 | `L` | Treat the current physical position as the new bottom reference |
 
-### Barrel commands
+### Barrel Commands
 
 | Command | Purpose |
 |---|---|
@@ -180,7 +180,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `I5` | Move the barrel directly to chamber index 5 |
 | `O` | Set the current barrel position as index 0 |
 
-### Yaw commands
+### Yaw Commands
 
 | Command | Purpose |
 |---|---|
@@ -188,6 +188,6 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `R0.25` | Move by a relative yaw angle in degrees |
 | `Z` | Set the current yaw position as zero |
 
-## Notes for new users
+## Notes for New Users
 
 The firmware does not currently use encoders or automatic homing sensors. If the mechanism is moved by hand, stalls, skips steps, or is changed while a motor is disabled, the software position can become inaccurate. In that case, the physical position should be re-established with the appropriate `L`, `O`, or `Z` command.
