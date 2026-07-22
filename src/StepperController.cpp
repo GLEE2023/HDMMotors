@@ -52,15 +52,30 @@ void StepperController::begin() {
 
   SPI.begin();
 
-  // Configure only the lead-screw driver for now.
   configureDriver(
     leadDriver,
     Config::LEAD_CURRENT_MA,
     Config::LEAD_MICROSTEPS
   );
 
-  // Ensure lead driver remains enabled after setup.
+  configureDriver(
+      barrelDriver,
+      Config::BARREL_CURRENT_MA,
+      Config::BARREL_MICROSTEPS
+  );
+
+  configureDriver(
+      yawDriver,
+      Config::YAW_CURRENT_MA,
+      Config::YAW_MICROSTEPS
+  );
+
+  // Lead screw remains enabled so it holds the puck stack.
   digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
+
+  // Barrel and yaw remain disabled until a movement command.
+  digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
+  digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
 }
 
 void StepperController::configureDriver(
@@ -345,22 +360,19 @@ long StepperController::moveSteps(
     : -(long)completedSteps;
 }
 
-void StepperController::printConnectionTests(Stream &output) {
-  output.println();
-  output.println(F("TMC5160 SPI connection tests:"));
+void StepperController::printConnectionTests(Stream &output)
+{
+    output.println();
+    output.println(F("TMC5160 SPI connection tests:"));
 
-  output.print(F("  Lead screw: "));
-  output.println(leadDriver.test_connection());
+    output.print(F(" Lead screw: "));
+    output.println(leadDriver.test_connection());
 
-  output.println(
-    F("  Barrel:     disabled for lead test")
-  );
+    output.print(F(" Barrel: "));
+    output.println(barrelDriver.test_connection());
 
-  output.println(
-    F("  Yaw:        disabled for lead test")
-  );
+    output.print(F(" Yaw: "));
+    output.println(yawDriver.test_connection());
 
-  output.println(
-    F("A lead-screw result of 0 normally indicates success.")
-  );
+    output.println(F("A result of 0 normally indicates success."));
 }
