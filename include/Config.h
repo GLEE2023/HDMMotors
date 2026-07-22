@@ -69,7 +69,7 @@ namespace Config {
   constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 5.0f;
 
   constexpr uint16_t LEAD_CURRENT_MA = 1400;
-  constexpr uint16_t LEAD_MICROSTEPS = 16;
+  constexpr uint16_t LEAD_MICROSTEPS = 4;
   constexpr float LEAD_STEPS_PER_MM = 100.8f;
   constexpr bool LEAD_POSITIVE_DIRECTION_LEVEL = false;
 
