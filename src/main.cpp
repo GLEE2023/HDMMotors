@@ -113,6 +113,7 @@ void printCommands() {
   Serial.println(F("  R0.25   Move relative yaw angle"));
   Serial.println(F("  Z       Set current yaw position as zero"));
   Serial.println(F("  C       Print system status"));
+  Serial.println(F("  T / t   Test SPI connection for TMC5160 drivers"));
   Serial.println(F("=============================="));
 }
 
@@ -168,6 +169,7 @@ void processCommand(const char *command) {
   if (cmd == 'w') { servoController.reset(); return; }
   if (cmd == 'e') { servoController.arm(); return; }
   if (cmd == 'p') { servoController.fire(); return; }
+  if (cmd == 'T' || cmd == 't') { stepperController.printConnectionTests(Serial); return; }
 
   char commandLetter = (char)toupper((unsigned char)cmd);
   const char *valueText = command + 1;

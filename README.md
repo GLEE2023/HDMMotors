@@ -36,7 +36,7 @@ The repository is split into a small set of source and header files:
 2. Connect the Arduino Nano to USB.
 3. Build and upload the `nanoatmega328` environment from [platformio.ini](platformio.ini).
 4. Open the serial monitor at 115200 baud.
-5. Try a simple command such as `e` to arm the servos or `C` to print the current system status.
+5. Try a simple command such as `e` to arm the servos, `C` to print the current system status, or `T` to run the TMC5160 SPI connection test.
 
 The firmware targets an Arduino Nano-compatible board and uses the following PlatformIO settings:
 
@@ -151,6 +151,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `F` or `f` | Run one full puck deployment cycle if a puck is present |
 | `H`, `h`, or `?` | Print the available commands |
 | `C` | Print the current status of the axes and servos |
+| `T` or `t` | Run the TMC5160 SPI connection test over the serial monitor |
 | `X` | Disable all stepper drivers |
 
 ### Servo Commands
