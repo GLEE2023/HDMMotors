@@ -170,6 +170,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `S` | Lower the elevator by one puck level |
 | `A` | Move the lead screw to the full top position |
 | `D` | Move the lead screw back to the bottom reference |
+| `B` | Run the lead screw down, ignoring the remembered position |
 | `L` | Treat the current physical position as the new bottom reference |
 
 ### Barrel Commands

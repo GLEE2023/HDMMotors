@@ -162,6 +162,45 @@ void Axes::moveLeadToTop() {
   leadPuckLevel = -1;
 }
 
+// Drives the lead screw all the way down to the physical bottom stop, ignoring the remembered position.
+void Axes::moveLeadToBottomFullDown() {
+  const long fullTravelSteps = leadMillimetersToSteps(Config::BARREL_HEIGHT_MM);
+  long remainingSteps = fullTravelSteps;
+
+  Serial.println(F("Running lead screw fully down to the bottom stop..."));
+
+  while (remainingSteps > 0) {
+    if (digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW) {
+      break;
+    }
+
+    long chunkSteps = remainingSteps > 2000L ? 2000L : remainingSteps;
+    long completedMovement = stepper.moveSteps(
+      Config::MotorId::LeadScrew,
+      -chunkSteps,
+      Config::LEAD_POSITIVE_DIRECTION_LEVEL,
+      Config::LEAD_PROFILE
+    );
+
+    if (completedMovement != -chunkSteps) {
+      break;
+    }
+
+    remainingSteps += completedMovement;
+  }
+
+  if (digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW) {
+    leadPositionSteps = 0;
+    leadPuckLevel = 0;
+    Serial.println(F("Lead screw reached the physical bottom stop."));
+  }
+  else {
+    leadPositionSteps = 0;
+    leadPuckLevel = -1;
+    Serial.println(F("Lead screw reached the configured travel limit without a bottom-switch trigger."));
+  }
+}
+
 // Moves the lead screw back to the bottom reference position.
 void Axes::moveLeadToBottom() {
   moveLeadToStepPosition(0);

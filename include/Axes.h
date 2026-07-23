@@ -16,6 +16,7 @@ public:
   bool moveLeadDownOnePuck();
   void moveLeadToTop();
   void moveLeadToBottom();
+  void moveLeadToBottomFullDown();
   void setLeadPositionAsBottom();
 
   // Barrel helpers for rotating the chamber to the next or previous firing position.
