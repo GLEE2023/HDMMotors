@@ -18,6 +18,7 @@ namespace Config {
   constexpr uint8_t LEAD_DIRECTION_PIN = 3;
   constexpr uint8_t LEAD_ENABLE_PIN = UNUSED_PIN;
 
+  // Standalone TMC2209 STEP/DIR pins for the barrel and yaw axes.
   constexpr uint8_t BARREL_STEP_PIN = 6;
   constexpr uint8_t BARREL_DIRECTION_PIN = 5;
   constexpr uint8_t BARREL_ENABLE_PIN = UNUSED_PIN;
@@ -26,16 +27,14 @@ namespace Config {
   constexpr uint8_t YAW_DIRECTION_PIN = 7;
   constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
 
-  constexpr uint8_t LEFT_SERVO_PIN = A3;
-  constexpr uint8_t RIGHT_SERVO_PIN = A4;
+  constexpr uint8_t LEFT_SERVO_PIN = A1;
+  constexpr uint8_t RIGHT_SERVO_PIN = A2;
 
   // Limit Switch Pins
-  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = A5;
-  constexpr uint8_t TOP_BARREL_SWITCH_PIN = 1;
+  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = A4;
+  constexpr uint8_t TOP_BARREL_SWITCH_PIN = A5;
 
-  // SPI CS Pins
-  constexpr uint8_t YAW_CHIP_SELECT_PIN = 4;
-  constexpr uint8_t BARREL_CHIP_SELECT_PIN = 9;
+  // SPI CS Pin for the lead-screw TMC5160 only.
   constexpr uint8_t LEAD_CHIP_SELECT_PIN = 10;
 
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
@@ -104,9 +103,10 @@ namespace Config {
   // ==========================================================
 
   constexpr uint16_t BARREL_CURRENT_MA = 600;
-  constexpr uint16_t BARREL_MICROSTEPS = 16;
+  // Standalone TMC2209s use the physical MS1/MS2 wiring for microstep resolution.
+  constexpr uint16_t BARREL_MICROSTEPS = 8;
   constexpr long BARREL_MOTOR_FULL_STEPS_PER_REVOLUTION = 200L;
-  constexpr uint8_t BARREL_POSITION_COUNT = 16;
+  constexpr uint8_t BARREL_POSITION_COUNT = 6;
   constexpr float BARREL_GEAR_RATIO = 1.0f;
   constexpr bool BARREL_POSITIVE_DIRECTION_LEVEL = true;
 
@@ -117,7 +117,7 @@ namespace Config {
   };
 
   constexpr uint16_t YAW_CURRENT_MA = 600;
-  constexpr uint16_t YAW_MICROSTEPS = 256;
+  constexpr uint16_t YAW_MICROSTEPS = 8;
   constexpr long YAW_MOTOR_FULL_STEPS_PER_REVOLUTION = 200L;
   constexpr float YAW_GEAR_RATIO = 1.0f;
   constexpr float YAW_MINIMUM_DEGREES = -30.0f;

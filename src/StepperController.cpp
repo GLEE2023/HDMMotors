@@ -1,9 +1,7 @@
 #include "StepperController.h"
 
 StepperController::StepperController()
-  : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE),
-    barrelDriver(Config::BARREL_CHIP_SELECT_PIN, Config::R_SENSE),
-    yawDriver(Config::YAW_CHIP_SELECT_PIN, Config::R_SENSE)
+  : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE)
 {}
 
 void StepperController::begin() {
@@ -11,18 +9,13 @@ void StepperController::begin() {
   pinMode(Config::LEAD_STEP_PIN, OUTPUT);
   pinMode(Config::LEAD_DIRECTION_PIN, OUTPUT);
 
-  // Barrel pins
+  // Barrel standalone TMC2209 STEP/DIR pins
   pinMode(Config::BARREL_STEP_PIN, OUTPUT);
   pinMode(Config::BARREL_DIRECTION_PIN, OUTPUT);
 
-  // Yaw pins
+  // Yaw standalone TMC2209 STEP/DIR pins
   pinMode(Config::YAW_STEP_PIN, OUTPUT);
   pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
-
-  // SPI chip-select pins
-  pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
-  pinMode(Config::BARREL_CHIP_SELECT_PIN, OUTPUT);
-  pinMode(Config::YAW_CHIP_SELECT_PIN, OUTPUT);
 
   // Initial STEP and DIR states
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
@@ -34,47 +27,22 @@ void StepperController::begin() {
   digitalWrite(Config::YAW_STEP_PIN, LOW);
   digitalWrite(Config::YAW_DIRECTION_PIN, LOW);
 
-  // The driver enable pins are tied to GND in hardware, so no software enable control is needed.
-
-  // Deselect all SPI devices before SPI starts.
+  // Only the lead-screw TMC5160 remains on SPI.
+  pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
   digitalWrite(Config::LEAD_CHIP_SELECT_PIN, HIGH);
-  digitalWrite(Config::BARREL_CHIP_SELECT_PIN, HIGH);
-  digitalWrite(Config::YAW_CHIP_SELECT_PIN, HIGH);
 
   SPI.begin();
-
-  configureDriver(
-    leadDriver,
-    Config::LEAD_CURRENT_MA,
-    Config::LEAD_MICROSTEPS
-  );
-
-  configureDriver(
-      barrelDriver,
-      Config::BARREL_CURRENT_MA,
-      Config::BARREL_MICROSTEPS
-  );
-
-  configureDriver(
-      yawDriver,
-      Config::YAW_CURRENT_MA,
-      Config::YAW_MICROSTEPS
-  );
-
+  configureLeadDriver();
 }
 
-void StepperController::configureDriver(
-  TMC5160Stepper &driver,
-  uint16_t currentMilliamps,
-  uint16_t microsteps
-) {
-  driver.begin();
-  driver.toff(5);
-  driver.rms_current(currentMilliamps);
-  driver.microsteps(microsteps);
+void StepperController::configureLeadDriver() {
+  leadDriver.begin();
+  leadDriver.toff(5);
+  leadDriver.rms_current(Config::LEAD_CURRENT_MA);
+  leadDriver.microsteps(Config::LEAD_MICROSTEPS);
 
   // SpreadCycle mode
-  driver.en_pwm_mode(false);
+  leadDriver.en_pwm_mode(false);
 }
 
 void StepperController::disableAllMotors() {
@@ -110,23 +78,6 @@ uint8_t StepperController::getDirectionPin(Config::MotorId motor) const {
 
     case Config::MotorId::Yaw:
       return Config::YAW_DIRECTION_PIN;
-
-    case Config::MotorId::None:
-    default:
-      return 255;
-  }
-}
-
-uint8_t StepperController::getEnablePin(Config::MotorId motor) const {
-  switch (motor) {
-    case Config::MotorId::LeadScrew:
-      return Config::LEAD_ENABLE_PIN;
-
-    case Config::MotorId::Barrel:
-      return Config::BARREL_ENABLE_PIN;
-
-    case Config::MotorId::Yaw:
-      return Config::YAW_ENABLE_PIN;
 
     case Config::MotorId::None:
     default:
@@ -320,19 +271,14 @@ long StepperController::moveSteps(
     : -(long)completedSteps;
 }
 
-void StepperController::printConnectionTests(Stream &output)
-{
-    output.println();
-    output.println(F("TMC5160 SPI connection tests:"));
+void StepperController::printConnectionTests(Stream &output) {
+  output.println();
+  output.println(F("Stepper-driver checks:"));
 
-    output.print(F(" Lead screw: "));
-    output.println(leadDriver.test_connection());
+  output.print(F(" Lead TMC5160 SPI result: "));
+  output.println(leadDriver.test_connection());
+  output.println(F("  A result of 0 normally indicates SPI success."));
 
-    output.print(F(" Barrel: "));
-    output.println(barrelDriver.test_connection());
-
-    output.print(F(" Yaw: "));
-    output.println(yawDriver.test_connection());
-
-    output.println(F("A result of 0 normally indicates success."));
+  output.println(F(" Barrel TMC2209: standalone STEP/DIR; no UART test."));
+  output.println(F(" Yaw TMC2209: standalone STEP/DIR; no UART test."));
 }
