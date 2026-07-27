@@ -107,7 +107,7 @@ namespace Config {
   constexpr uint16_t BARREL_MICROSTEPS = 8;
   constexpr long BARREL_MOTOR_FULL_STEPS_PER_REVOLUTION = 200L;
   constexpr uint8_t BARREL_POSITION_COUNT = 6;
-  constexpr float BARREL_GEAR_RATIO = 1.0f;
+  constexpr float BARREL_GEAR_RATIO = 111.0f / 20.0f;
   constexpr bool BARREL_POSITIVE_DIRECTION_LEVEL = true;
 
   constexpr MotionProfile BARREL_PROFILE = {
@@ -119,7 +119,7 @@ namespace Config {
   constexpr uint16_t YAW_CURRENT_MA = 600;
   constexpr uint16_t YAW_MICROSTEPS = 8;
   constexpr long YAW_MOTOR_FULL_STEPS_PER_REVOLUTION = 200L;
-  constexpr float YAW_GEAR_RATIO = 1.0f;
+  constexpr float YAW_GEAR_RATIO = 111.0f / 20.0f;
   constexpr float YAW_MINIMUM_DEGREES = -30.0f;
   constexpr float YAW_MAXIMUM_DEGREES = 30.0f;
   constexpr bool YAW_HOLD_AFTER_MOVE = true;
