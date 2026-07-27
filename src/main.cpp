@@ -104,6 +104,7 @@ void printCommands() {
   Serial.println(F("  e       Arm servos"));
   Serial.println(F("  p       Raw servo fire pulse"));
   Serial.println(F("  W / S   Raise / Lower elevator 1 puck"));
+  Serial.println(F("  + / -   Move lead screw up / down 1 mm for alignment"));
   Serial.println(F("  A / D / B   Move lead screw to full-up / bottom / full-down"));
   Serial.println(F("  L       Set current lead position as bottom"));
   Serial.println(F("  N / P   Move barrel to next / previous index"));
@@ -177,6 +178,8 @@ void processCommand(const char *command) {
   switch (commandLetter) {
     case 'W': axes.moveLeadUpOnePuck(); break;
     case 'S': axes.moveLeadDownOnePuck(); break;
+    case '+': axes.moveLeadUpOneMillimeter(); break;
+    case '-': axes.moveLeadDownOneMillimeter(); break;
     case 'A': axes.moveLeadToTop(); break;
     case 'D': axes.moveLeadToBottom(); break;
     case 'B': axes.moveLeadToBottomFullDown(); break;

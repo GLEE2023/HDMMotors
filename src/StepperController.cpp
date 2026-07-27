@@ -10,17 +10,14 @@ void StepperController::begin() {
   // Lead screw pins
   pinMode(Config::LEAD_STEP_PIN, OUTPUT);
   pinMode(Config::LEAD_DIRECTION_PIN, OUTPUT);
-  pinMode(Config::LEAD_ENABLE_PIN, OUTPUT);
 
   // Barrel pins
   pinMode(Config::BARREL_STEP_PIN, OUTPUT);
   pinMode(Config::BARREL_DIRECTION_PIN, OUTPUT);
-  pinMode(Config::BARREL_ENABLE_PIN, OUTPUT);
 
   // Yaw pins
   pinMode(Config::YAW_STEP_PIN, OUTPUT);
   pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
-  pinMode(Config::YAW_ENABLE_PIN, OUTPUT);
 
   // SPI chip-select pins
   pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
@@ -37,13 +34,7 @@ void StepperController::begin() {
   digitalWrite(Config::YAW_STEP_PIN, LOW);
   digitalWrite(Config::YAW_DIRECTION_PIN, LOW);
 
-  // Keep the lead screw permanently enabled.
-  // TMC5160 enable is active-low.
-  digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
-
-  // Keep barrel and yaw disabled during this lead-screw test.
-  digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
-  digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
+  // The driver enable pins are tied to GND in hardware, so no software enable control is needed.
 
   // Deselect all SPI devices before SPI starts.
   digitalWrite(Config::LEAD_CHIP_SELECT_PIN, HIGH);
@@ -70,12 +61,6 @@ void StepperController::begin() {
       Config::YAW_MICROSTEPS
   );
 
-  // Lead screw remains enabled so it holds the puck stack.
-  digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
-
-  // Barrel and yaw remain disabled until a movement command.
-  digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
-  digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
 }
 
 void StepperController::configureDriver(
@@ -96,13 +81,6 @@ void StepperController::disableAllMotors() {
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
   digitalWrite(Config::BARREL_STEP_PIN, LOW);
   digitalWrite(Config::YAW_STEP_PIN, LOW);
-
-  // Lead stays enabled.
-  digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
-
-  // Barrel and yaw stay disabled.
-  digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
-  digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
 }
 
 uint8_t StepperController::getStepPin(Config::MotorId motor) const {
@@ -162,27 +140,10 @@ void StepperController::disableMotor(Config::MotorId motor) {
   if (stepPin != 255) {
     digitalWrite(stepPin, LOW);
   }
-
-  // Never disable the lead-screw driver during this test.
-  if (motor == Config::MotorId::LeadScrew) {
-    digitalWrite(Config::LEAD_ENABLE_PIN, LOW);
-    return;
-  }
-
-  uint8_t enablePin = getEnablePin(motor);
-
-  if (enablePin != 255) {
-    digitalWrite(enablePin, HIGH);
-  }
 }
 
 void StepperController::enableMotor(Config::MotorId motor) {
-  uint8_t enablePin = getEnablePin(motor);
-
-  if (enablePin != 255) {
-    digitalWrite(enablePin, LOW);
-    delay(5);
-  }
+  (void)motor;
 }
 
 uint16_t StepperController::calculatePulseDelay(
@@ -347,7 +308,6 @@ long StepperController::moveSteps(
 
   digitalWrite(stepPin, LOW);
 
-  // Keep lead screw enabled permanently.
   if (
     motor != Config::MotorId::LeadScrew &&
     !keepEnabledAfterMove

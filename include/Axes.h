@@ -14,6 +14,9 @@ public:
   // Lead-screw helpers for moving the elevator between puck levels.
   bool moveLeadUpOnePuck();
   bool moveLeadDownOnePuck();
+  void moveLeadUpOneMillimeter();
+  void moveLeadDownOneMillimeter();
+  void moveLeadRelativeMillimeters(float millimeters);
   void moveLeadToTop();
   void moveLeadToBottom();
   void moveLeadToBottomFullDown();
@@ -49,6 +52,8 @@ private:
   float leadStepsToMillimeters(long steps) const;
   // Returns the physical height of a given puck level above the bottom reference.
   float getLeadPuckLevelMillimeters(uint8_t puckLevel) const;
+  // Infers the current puck level from the physical lead-screw position.
+  int8_t inferLeadPuckLevelFromPosition(long positionSteps) const;
   // Moves the lead screw directly to an absolute step position.
   void moveLeadToStepPosition(long targetStepPosition);
   // Moves the elevator to a named puck level and updates its internal state.

@@ -11,18 +11,20 @@ namespace Config {
   constexpr float R_SENSE = 0.075f;
   constexpr unsigned long SERIAL_BAUD = 115200;
 
+  constexpr uint8_t UNUSED_PIN = 255;
+
   // Driver Pin Definitions
   constexpr uint8_t LEAD_STEP_PIN = 2;
   constexpr uint8_t LEAD_DIRECTION_PIN = 3;
-  constexpr uint8_t LEAD_ENABLE_PIN = 4;
+  constexpr uint8_t LEAD_ENABLE_PIN = UNUSED_PIN;
 
-  constexpr uint8_t BARREL_STEP_PIN = 5;
-  constexpr uint8_t BARREL_DIRECTION_PIN = 6;
-  constexpr uint8_t BARREL_ENABLE_PIN = 7;
+  constexpr uint8_t BARREL_STEP_PIN = 6;
+  constexpr uint8_t BARREL_DIRECTION_PIN = 5;
+  constexpr uint8_t BARREL_ENABLE_PIN = UNUSED_PIN;
 
-  constexpr uint8_t YAW_STEP_PIN = A0;
-  constexpr uint8_t YAW_DIRECTION_PIN = A1;
-  constexpr uint8_t YAW_ENABLE_PIN = A2;
+  constexpr uint8_t YAW_STEP_PIN = 8;
+  constexpr uint8_t YAW_DIRECTION_PIN = 7;
+  constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
 
   constexpr uint8_t LEFT_SERVO_PIN = A3;
   constexpr uint8_t RIGHT_SERVO_PIN = A4;
@@ -32,7 +34,7 @@ namespace Config {
   constexpr uint8_t TOP_BARREL_SWITCH_PIN = 1;
 
   // SPI CS Pins
-  constexpr uint8_t YAW_CHIP_SELECT_PIN = 8;
+  constexpr uint8_t YAW_CHIP_SELECT_PIN = 4;
   constexpr uint8_t BARREL_CHIP_SELECT_PIN = 9;
   constexpr uint8_t LEAD_CHIP_SELECT_PIN = 10;
 
@@ -64,7 +66,7 @@ namespace Config {
   // ==========================================================
 
   constexpr float PUCK_HEIGHT_MM = 14.0f;
-  constexpr float BARREL_HEIGHT_MM = 249.0f;
+  constexpr float BARREL_HEIGHT_MM = 279.0f;
   constexpr uint8_t PUCK_COUNT = 17;
   constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 10.0f;
 
@@ -87,11 +89,11 @@ namespace Config {
   constexpr int LEFT_SERVO_REST = 180;
   constexpr int RIGHT_SERVO_REST = 0;
 
-  constexpr int LEFT_SERVO_ARM = 145;
-  constexpr int RIGHT_SERVO_ARM = 35;
+  constexpr int LEFT_SERVO_ARM = 135;
+  constexpr int RIGHT_SERVO_ARM = 45;
 
   constexpr int LEFT_SERVO_FIRE = 60;
-  constexpr int RIGHT_SERVO_FIRE = 120;
+  constexpr int RIGHT_SERVO_FIRE = 130;
 
   constexpr int SERVO_ANGLE_STEP = 5;
   constexpr unsigned long SERVO_STEP_DELAY_MS = 20;

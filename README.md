@@ -92,15 +92,10 @@ This project uses three TMC5160 stepper drivers and two hobby servos. The Nano p
 |---|---:|
 | Lead STEP | D2 |
 | Lead DIR | D3 |
-| Lead ENABLE | D4 |
-| Barrel STEP | D5 |
-| Barrel DIR | D6 |
-| Barrel ENABLE | D7 |
-| Yaw STEP | A0 |
-| Yaw DIR | A1 |
-| Yaw ENABLE | A2 |
-| Yaw SPI CS | D8 |
-| Barrel SPI CS | D9 |
+| Barrel DIR | D5 |
+| Barrel STEP | D6 |
+| Yaw DIR | D7 |
+| Yaw STEP | D8 |
 | Lead SPI CS | D10 |
 | Shared MOSI | D11 |
 | Shared MISO | D12 |
@@ -168,6 +163,8 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 |---|---|
 | `W` | Raise the elevator by one puck level |
 | `S` | Lower the elevator by one puck level |
+| `+` | Move the lead screw up by 1 mm for alignment checks |
+| `-` | Move the lead screw down by 1 mm for alignment checks |
 | `A` | Move the lead screw to the full top position |
 | `D` | Move the lead screw back to the bottom reference |
 | `B` | Run the lead screw down, ignoring the remembered position |
