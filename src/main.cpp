@@ -118,7 +118,7 @@ void printCommands() {
   Serial.println(F("=============================="));
 }
 
-// Runs one complete fire sequence: detect a puck, fire it, advance the system, and return home.
+// Runs one complete fire sequence: detect a puck, arm it, drop to fire, then rise and advance.
 void executeSinglePuckCycle() {
   Serial.println(F("--- STARTING SINGLE PUCK DEPLOYMENT ---"));
 
@@ -127,8 +127,39 @@ void executeSinglePuckCycle() {
     return;
   }
 
+  int8_t currentPuckLevel = axes.getLeadPuckLevel();
+
+  if (currentPuckLevel < 0) {
+    currentPuckLevel = 0;
+  }
+
+  uint8_t targetPuckLevel = currentPuckLevel <= 0 ? 1 : (uint8_t)currentPuckLevel;
+
+  if (targetPuckLevel > Config::PUCK_COUNT) {
+    Serial.println(F("No additional puck level available. Returning elevator to bottom position..."));
+    axes.moveLeadToBottom();
+    return;
+  }
+
+  Serial.print(F("Positioning puck level "));
+  Serial.println(targetPuckLevel);
+
+  if (!axes.moveLeadToPuckLevel(targetPuckLevel)) {
+    Serial.println(F("Unable to position the elevator for the current puck level."));
+    return;
+  }
+
+  Serial.println(F("Arming servos..."));
+  servoController.arm();
+
+  Serial.println(F("Dropping lead screw 3 mm for launch..."));
+  axes.moveLeadRelativeMillimeters(-3.0f);
+
   Serial.println(F("Launching puck..."));
   servoController.fire();
+
+  Serial.println(F("Returning lead screw to normal height..."));
+  axes.moveLeadRelativeMillimeters(3.0f);
 
   Serial.println(F("Raising lead screw for the next puck..."));
   bool raised = axes.moveLeadUpOnePuck();
@@ -139,10 +170,8 @@ void executeSinglePuckCycle() {
   }
   else {
     Serial.println(F("No additional puck level available. Returning elevator to bottom position..."));
+    axes.moveLeadToBottom();
   }
-
-  Serial.println(F("Returning elevator to bottom position..."));
-  axes.moveLeadToBottom();
 }
 
 // Parses a single incoming command and sends it to the correct motion or servo action.

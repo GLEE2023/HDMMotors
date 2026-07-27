@@ -38,7 +38,7 @@ void ServoController::moveServosSmooth(int targetLeft, int targetRight) {
   const int step = Config::SERVO_ANGLE_STEP;
   const unsigned long wait = Config::SERVO_STEP_DELAY_MS;
 
-  while (leftAngle != targetLeft && rightAngle != targetRight) {
+  while (leftAngle != targetLeft || rightAngle != targetRight) {
     if (leftAngle < targetLeft) leftAngle += step;
     else if (leftAngle > targetLeft) leftAngle -= step;
 

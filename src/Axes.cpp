@@ -31,8 +31,12 @@ float Axes::getLeadPuckLevelMillimeters(uint8_t puckLevel) const {
     return 0.0f;
   }
 
+  if (puckLevel == 1) {
+    return Config::FIRST_PUCK_EXTRA_OFFSET_MM;
+  }
+
   return Config::FIRST_PUCK_EXTRA_OFFSET_MM +
-    ((float)puckLevel * Config::PUCK_HEIGHT_MM);
+    ((float)(puckLevel - 1) * Config::PUCK_HEIGHT_MM);
 }
 
 // Infers the current puck level from the physical lead-screw position.
@@ -186,6 +190,11 @@ void Axes::moveLeadUpOneMillimeter() {
 // Moves the lead screw down by 1 mm for alignment checks.
 void Axes::moveLeadDownOneMillimeter() {
   moveLeadRelativeMillimeters(-1.0f);
+}
+
+// Returns the currently tracked puck level for the lead screw.
+int8_t Axes::getLeadPuckLevel() const {
+  return leadPuckLevel;
 }
 
 // Moves the lead screw all the way to the top of its travel range.
