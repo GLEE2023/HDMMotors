@@ -90,8 +90,8 @@ namespace Config {
   constexpr int LEFT_SERVO_ARM = 145;
   constexpr int RIGHT_SERVO_ARM = 35;
 
-  constexpr int LEFT_SERVO_FIRE = 60;
-  constexpr int RIGHT_SERVO_FIRE = 120;
+  constexpr int LEFT_SERVO_FIRE = 40;
+  constexpr int RIGHT_SERVO_FIRE = 140;
 
   constexpr int SERVO_ANGLE_STEP = 5;
   constexpr unsigned long SERVO_STEP_DELAY_MS = 20;

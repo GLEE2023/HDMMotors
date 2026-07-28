@@ -5,22 +5,31 @@
 
 #include "Config.h"
 
-// Drives the two firing servos with a simple stateful interface.
-// Controls the firing servos used to push the puck out of the barrel.
+// Controls the two mirrored firing servos used to push the puck.
 class ServoController {
 public:
-  // Creates a servo controller with the initial rest positions loaded.
+  // Creates the controller with the configured rest positions.
   ServoController();
 
-  // Initializes the servos and puts them in their rest position.
+  // Attaches both servos and moves them to rest.
   void begin();
-  // Returns the servos to their resting angles.
+
+  // Returns both servos to rest.
   void reset();
-  // Moves the servos into the armed position.
+
+  // Moves both servos to the armed position.
   void arm();
-  // Executes one firing pulse and then returns to rest.
+
+  // Fires both servos and returns them to rest.
   void fire();
-  // Prints the current servo angles for debugging.
+
+  // Fires only the left servo and returns it to rest.
+  void fireLeft();
+
+  // Fires only the right servo and returns it to rest.
+  void fireRight();
+
+  // Prints the current commanded servo angles.
   void printStatus(Stream &output) const;
 
 private:
@@ -30,8 +39,9 @@ private:
   int leftAngle;
   int rightAngle;
 
-  // Writes a specific angle to both servos after clamping it to the valid range.
+  // Writes angles to both servos.
   void writeServos(int left, int right);
-  // Moves each servo in small steps so the motion looks smoother.
+
+  // Moves both servos smoothly toward their requested targets.
   void moveServosSmooth(int targetLeft, int targetRight);
 };

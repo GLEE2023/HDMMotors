@@ -14,52 +14,85 @@ ServoController servoController;
 char commandBuffer[32];
 uint8_t commandLength = 0;
 
-// Configures the limit and barrel-presence switches used by the control logic.
-void setupSwitches() {
-  pinMode(Config::BOTTOM_LIMIT_SWITCH_PIN, INPUT_PULLUP);
-  pinMode(Config::TOP_BARREL_SWITCH_PIN, INPUT_PULLUP);
+// Configures the limit and barrel-presence switches.
+void setupSwitches()
+{
+  pinMode(
+    Config::BOTTOM_LIMIT_SWITCH_PIN,
+    INPUT_PULLUP
+  );
+
+  pinMode(
+    Config::TOP_BARREL_SWITCH_PIN,
+    INPUT_PULLUP
+  );
 }
 
-// Returns true when the barrel switch indicates that a puck is sitting at the firing position.
-bool isPuckInBarrel() {
-  // Assumes ACTIVE LOW switch setup (grounded when closed/triggered)
-  return digitalRead(Config::TOP_BARREL_SWITCH_PIN) == LOW;
+// Returns true when a puck is detected at the firing position.
+bool isPuckInBarrel()
+{
+  // Active-low switch.
+  return digitalRead(
+    Config::TOP_BARREL_SWITCH_PIN
+  ) == LOW;
 }
 
-// Returns true when the elevator has reached the lower limit switch.
-bool isElevatorAtBottom() {
-  return digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
+// Returns true when the elevator reaches the lower limit.
+bool isElevatorAtBottom()
+{
+  return digitalRead(
+    Config::BOTTOM_LIMIT_SWITCH_PIN
+  ) == LOW;
 }
 
-// Advances past common command separators so numeric values can be parsed cleanly.
-const char *skipCommandSeparators(const char *text) {
-  while (*text == ' ' || *text == '\t' || *text == ':' || *text == '=') {
+// Skips separators before numeric command values.
+const char *skipCommandSeparators(const char *text)
+{
+  while (
+    *text == ' ' ||
+    *text == '\t' ||
+    *text == ':' ||
+    *text == '='
+  )
+  {
     text++;
   }
 
   return text;
 }
 
-// Parses a signed integer from the command text after trimming separators.
-bool parseLongValue(const char *text, long &value) {
+// Parses a signed integer from a command.
+bool parseLongValue(const char *text, long &value)
+{
   text = skipCommandSeparators(text);
 
-  if (*text == '\0') {
+  if (*text == '\0')
+  {
     return false;
   }
 
   char *endPointer = nullptr;
-  long parsedValue = strtol(text, &endPointer, 10);
+  long parsedValue = strtol(
+    text,
+    &endPointer,
+    10
+  );
 
-  if (endPointer == text) {
+  if (endPointer == text)
+  {
     return false;
   }
 
-  while (*endPointer == ' ' || *endPointer == '\t') {
+  while (
+    *endPointer == ' ' ||
+    *endPointer == '\t'
+  )
+  {
     endPointer++;
   }
 
-  if (*endPointer != '\0') {
+  if (*endPointer != '\0')
+  {
     return false;
   }
 
@@ -67,142 +100,399 @@ bool parseLongValue(const char *text, long &value) {
   return true;
 }
 
-// Parses a floating-point value from the command text after trimming separators.
-bool parseFloatValue(const char *text, float &value) {
+// Parses a floating-point value from a command.
+bool parseFloatValue(const char *text, float &value)
+{
   text = skipCommandSeparators(text);
 
-  if (*text == '\0') {
+  if (*text == '\0')
+  {
     return false;
   }
 
   char *endPointer = nullptr;
-  double parsedValue = strtod(text, &endPointer);
+  double parsedValue = strtod(
+    text,
+    &endPointer
+  );
 
-  if (endPointer == text) {
+  if (endPointer == text)
+  {
     return false;
   }
 
-  while (*endPointer == ' ' || *endPointer == '\t') {
+  while (
+    *endPointer == ' ' ||
+    *endPointer == '\t'
+  )
+  {
     endPointer++;
   }
 
-  if (*endPointer != '\0') {
+  if (*endPointer != '\0')
+  {
     return false;
   }
 
-  value = (float)parsedValue;
+  value = static_cast<float>(parsedValue);
   return true;
 }
 
-// Prints the serial command help text for operator use.
-void printCommands() {
+// Prints the available commands.
+void printCommands()
+{
   Serial.println();
   Serial.println(F("========== COMMANDS =========="));
-  Serial.println(F("  F / f   Fire one puck if present"));
-  Serial.println(F("  H / h   Home lead screw to bottom position"));
-  Serial.println(F("  w       Reset servos"));
-  Serial.println(F("  e       Arm servos"));
-  Serial.println(F("  p       Raw servo fire pulse"));
-  Serial.println(F("  W / S   Raise / Lower elevator 1 puck"));
-  Serial.println(F("  A / D   Move lead screw to full-up / bottom"));
-  Serial.println(F("  L       Set current lead position as bottom"));
-  Serial.println(F("  N / P   Move barrel to next / previous index"));
-  Serial.println(F("  I5      Move barrel directly to index 5"));
-  Serial.println(F("  O       Set current barrel position as index 0"));
-  Serial.println(F("  Y12.5   Move absolute yaw angle"));
-  Serial.println(F("  R0.25   Move relative yaw angle"));
-  Serial.println(F("  Z       Set current yaw position as zero"));
-  Serial.println(F("  C       Print system status"));
-  Serial.println(F("  T / t   Test SPI connection for TMC5160 drivers"));
+
+  Serial.println(
+    F("  F / f   Run complete single-puck deployment")
+  );
+
+  Serial.println(
+    F("  H / h   Print this command menu")
+  );
+
+  Serial.println();
+  Serial.println(F("  SERVO COMMANDS"));
+
+  Serial.println(
+    F("  w       Reset both servos")
+  );
+
+  Serial.println(
+    F("  e       Arm both servos")
+  );
+
+  Serial.println(
+    F("  p       Fire RIGHT servo only")
+  );
+
+  Serial.println(
+    F("  L / l   Fire LEFT servo only")
+  );
+
+  Serial.println(
+    F("  M / m   Fire BOTH servos")
+  );
+
+  Serial.println();
+  Serial.println(F("  LEAD-SCREW COMMANDS"));
+
+  Serial.println(
+    F("  W / S   Raise / lower elevator one puck")
+  );
+
+  Serial.println(
+    F("  A / D   Move lead screw to top / bottom")
+  );
+
+  Serial.println(
+    F("  B       Set current lead position as bottom")
+  );
+
+  Serial.println();
+  Serial.println(F("  BARREL COMMANDS"));
+
+  Serial.println(
+    F("  N / P   Move barrel to next / previous index")
+  );
+
+  Serial.println(
+    F("  I5      Move barrel directly to index 5")
+  );
+
+  Serial.println(
+    F("  O       Set current barrel position as index 0")
+  );
+
+  Serial.println();
+  Serial.println(F("  YAW COMMANDS"));
+
+  Serial.println(
+    F("  Y12.5   Move to an absolute yaw angle")
+  );
+
+  Serial.println(
+    F("  R0.25   Move by a relative yaw angle")
+  );
+
+  Serial.println(
+    F("  Z       Set current yaw position as zero")
+  );
+
+  Serial.println();
+  Serial.println(F("  SYSTEM COMMANDS"));
+
+  Serial.println(
+    F("  C       Print system status")
+  );
+
+  Serial.println(
+    F("  T / t   Test TMC5160 SPI connections")
+  );
+
+  Serial.println(
+    F("  X       Disable all stepper motors")
+  );
+
   Serial.println(F("=============================="));
 }
 
-// Runs one complete fire sequence: detect a puck, fire it, advance the system, and return home.
-void executeSinglePuckCycle() {
-  Serial.println(F("--- STARTING SINGLE PUCK DEPLOYMENT ---"));
+// Runs the complete deployment sequence.
+void executeSinglePuckCycle()
+{
+  Serial.println(
+    F("--- STARTING SINGLE PUCK DEPLOYMENT ---")
+  );
 
-  if (!isPuckInBarrel()) {
-    Serial.println(F("No puck detected at the firing position. Skipping this cycle."));
+  if (!isPuckInBarrel())
+  {
+    Serial.println(
+      F("No puck detected at the firing position.")
+    );
+
+    Serial.println(
+      F("Skipping this deployment cycle.")
+    );
+
     return;
   }
 
   Serial.println(F("Launching puck..."));
+
+  // Both servos fire during the automatic deployment.
   servoController.fire();
 
-  Serial.println(F("Raising lead screw for the next puck..."));
+  Serial.println(
+    F("Raising lead screw for the next puck...")
+  );
+
   bool raised = axes.moveLeadUpOnePuck();
 
-  if (raised) {
-    Serial.println(F("Advancing barrel to the next chamber..."));
+  if (raised)
+  {
+    Serial.println(
+      F("Advancing barrel to the next chamber...")
+    );
+
     axes.moveBarrelToNextIndex();
   }
-  else {
-    Serial.println(F("No additional puck level available. Returning elevator to bottom position..."));
+  else
+  {
+    Serial.println(
+      F("No additional puck level is available.")
+    );
   }
 
-  Serial.println(F("Returning elevator to bottom position..."));
+  Serial.println(
+    F("Returning elevator to bottom position...")
+  );
+
   axes.moveLeadToBottom();
+
+  Serial.println(
+    F("--- DEPLOYMENT CYCLE COMPLETE ---")
+  );
 }
 
-// Parses a single incoming command and sends it to the correct motion or servo action.
-void processCommand(const char *command) {
-  while (*command == ' ' || *command == '\t') {
+// Parses and executes one serial command.
+void processCommand(const char *command)
+{
+  while (
+    *command == ' ' ||
+    *command == '\t'
+  )
+  {
     command++;
   }
 
-  if (*command == '\0') {
+  if (*command == '\0')
+  {
     return;
   }
 
   char cmd = command[0];
 
-  if (cmd == 'F' || cmd == 'f') {
+  // ========================================================
+  // COMPLETE DEPLOYMENT
+  // ========================================================
+
+  if (cmd == 'F' || cmd == 'f')
+  {
     executeSinglePuckCycle();
     return;
   }
 
-  if (cmd == 'H' || cmd == 'h' || cmd == '?') {
+  // ========================================================
+  // HELP
+  // ========================================================
+
+  if (
+    cmd == 'H' ||
+    cmd == 'h' ||
+    cmd == '?'
+  )
+  {
     printCommands();
     return;
   }
 
-  if (cmd == 'w') { servoController.reset(); return; }
-  if (cmd == 'e') { servoController.arm(); return; }
-  if (cmd == 'p') { servoController.fire(); return; }
-  if (cmd == 'T' || cmd == 't') { stepperController.printConnectionTests(Serial); return; }
+  // ========================================================
+  // CASE-SENSITIVE SERVO COMMANDS
+  // ========================================================
 
-  char commandLetter = (char)toupper((unsigned char)cmd);
+  // Lowercase w resets both servos.
+  if (cmd == 'w')
+  {
+    servoController.reset();
+    Serial.println(F("Both servos reset."));
+    return;
+  }
+
+  // Lowercase e arms both servos.
+  if (cmd == 'e')
+  {
+    servoController.arm();
+    Serial.println(F("Both servos armed."));
+    return;
+  }
+
+  // Lowercase p fires only the right servo.
+  // Uppercase P remains barrel previous.
+  if (cmd == 'p')
+  {
+    servoController.fireRight();
+    Serial.println(F("Right servo fired."));
+    return;
+  }
+
+  // L or l fires only the left servo.
+  if (cmd == 'L' || cmd == 'l')
+  {
+    servoController.fireLeft();
+    Serial.println(F("Left servo fired."));
+    return;
+  }
+
+  // M or m fires both servos.
+  if (cmd == 'M' || cmd == 'm')
+  {
+    servoController.fire();
+    Serial.println(F("Both servos fired."));
+    return;
+  }
+
+  // Test the TMC5160 SPI connections.
+  if (cmd == 'T' || cmd == 't')
+  {
+    stepperController.printConnectionTests(Serial);
+    return;
+  }
+
+  char commandLetter =
+    static_cast<char>(
+      toupper(
+        static_cast<unsigned char>(cmd)
+      )
+    );
+
   const char *valueText = command + 1;
 
-  switch (commandLetter) {
-    case 'W': axes.moveLeadUpOnePuck(); break;
-    case 'S': axes.moveLeadDownOnePuck(); break;
-    case 'A': axes.moveLeadToTop(); break;
-    case 'D': axes.moveLeadToBottom(); break;
-    case 'L': axes.setLeadPositionAsBottom(); break;
-    case 'N': axes.moveBarrelToNextIndex(); break;
-    case 'P': axes.moveBarrelToPreviousIndex(); break;
+  switch (commandLetter)
+  {
+    // ======================================================
+    // LEAD SCREW
+    // ======================================================
+
+    case 'W':
+      axes.moveLeadUpOnePuck();
+      break;
+
+    case 'S':
+      axes.moveLeadDownOnePuck();
+      break;
+
+    case 'A':
+      axes.moveLeadToTop();
+      break;
+
+    case 'D':
+      axes.moveLeadToBottom();
+      break;
+
+    // Changed from L to B because L is now left servo.
+    case 'B':
+      axes.setLeadPositionAsBottom();
+      Serial.println(
+        F("Current lead position set as bottom.")
+      );
+      break;
+
+    // ======================================================
+    // BARREL
+    // ======================================================
+
+    case 'N':
+      axes.moveBarrelToNextIndex();
+      break;
+
+    // Only uppercase P reaches this case because lowercase p
+    // was already handled as the right-servo command.
+    case 'P':
+      axes.moveBarrelToPreviousIndex();
+      break;
 
     case 'I':
     {
       long requestedIndex = 0;
-      if (!parseLongValue(valueText, requestedIndex)) {
-        Serial.println(F("Invalid index. Example: I5"));
+
+      if (
+        !parseLongValue(
+          valueText,
+          requestedIndex
+        )
+      )
+      {
+        Serial.println(
+          F("Invalid index. Example: I5")
+        );
+
         break;
       }
-      axes.moveBarrelToIndex((int)requestedIndex);
+
+      axes.moveBarrelToIndex(
+        static_cast<int>(requestedIndex)
+      );
+
       break;
     }
 
-    case 'O': axes.setBarrelPositionAsIndexZero(); break;
+    case 'O':
+      axes.setBarrelPositionAsIndexZero();
+      break;
+
+    // ======================================================
+    // YAW
+    // ======================================================
 
     case 'Y':
     {
       float requestedAngle = 0.0f;
-      if (!parseFloatValue(valueText, requestedAngle)) {
-        Serial.println(F("Invalid yaw angle. Example: Y12.5"));
+
+      if (
+        !parseFloatValue(
+          valueText,
+          requestedAngle
+        )
+      )
+      {
+        Serial.println(
+          F("Invalid yaw angle. Example: Y12.5")
+        );
+
         break;
       }
+
       axes.moveYawToDegrees(requestedAngle);
       break;
     }
@@ -210,28 +500,69 @@ void processCommand(const char *command) {
     case 'R':
     {
       float requestedMovement = 0.0f;
-      if (!parseFloatValue(valueText, requestedMovement)) {
-        Serial.println(F("Invalid relative yaw. Example: R0.25"));
+
+      if (
+        !parseFloatValue(
+          valueText,
+          requestedMovement
+        )
+      )
+      {
+        Serial.println(
+          F("Invalid relative yaw. Example: R0.25")
+        );
+
         break;
       }
-      axes.moveYawRelativeDegrees(requestedMovement);
+
+      axes.moveYawRelativeDegrees(
+        requestedMovement
+      );
+
       break;
     }
 
-    case 'Z': axes.setYawPositionAsZero(); break;
+    case 'Z':
+      axes.setYawPositionAsZero();
+      break;
+
+    // ======================================================
+    // STATUS
+    // ======================================================
 
     case 'C':
       axes.printStatus(Serial);
       servoController.printStatus(Serial);
-      Serial.print(F("Puck in Barrel Switch: "));
-      Serial.println(isPuckInBarrel() ? F("TRIGGERED") : F("OPEN"));
-      Serial.print(F("Elevator Bottom Switch: "));
-      Serial.println(isElevatorAtBottom() ? F("TRIGGERED") : F("OPEN"));
+
+      Serial.print(
+        F("Puck in Barrel Switch: ")
+      );
+
+      Serial.println(
+        isPuckInBarrel()
+          ? F("TRIGGERED")
+          : F("OPEN")
+      );
+
+      Serial.print(
+        F("Elevator Bottom Switch: ")
+      );
+
+      Serial.println(
+        isElevatorAtBottom()
+          ? F("TRIGGERED")
+          : F("OPEN")
+      );
+
       break;
+
+    // ======================================================
+    // EMERGENCY STOP
+    // ======================================================
 
     case 'X':
       stepperController.disableAllMotors();
-      Serial.println(F("All motors stopped."));
+      Serial.println(F("All stepper motors stopped."));
       break;
 
     default:
@@ -241,39 +572,63 @@ void processCommand(const char *command) {
   }
 }
 
-// Collects incoming serial bytes into a temporary buffer until a full command line is received.
-void readSerialCommands() {
-  while (Serial.available() > 0) {
-    char incomingCharacter = (char)Serial.read();
+// Reads serial bytes until a complete command line is received.
+void readSerialCommands()
+{
+  while (Serial.available() > 0)
+  {
+    char incomingCharacter =
+      static_cast<char>(Serial.read());
 
-    if (incomingCharacter == '\r') continue; // ignore carriage returns
+    // Ignore carriage return.
+    if (incomingCharacter == '\r')
+    {
+      continue;
+    }
 
-    if (incomingCharacter == '\n') {
+    // Process the command at newline.
+    if (incomingCharacter == '\n')
+    {
       commandBuffer[commandLength] = '\0';
-      if (commandLength > 0) processCommand(commandBuffer);
+
+      if (commandLength > 0)
+      {
+        processCommand(commandBuffer);
+      }
+
       commandLength = 0;
       continue;
     }
 
-    if (commandLength < sizeof(commandBuffer) - 1) {
-      commandBuffer[commandLength++] = incomingCharacter;
+    if (
+      commandLength <
+      sizeof(commandBuffer) - 1
+    )
+    {
+      commandBuffer[commandLength++] =
+        incomingCharacter;
     }
   }
 }
 
-// Initializes serial communication, input switches, motion drivers, and servos at startup.
-void setup() {
+// Initializes serial, switches, stepper drivers, and servos.
+void setup()
+{
   Serial.begin(Config::SERIAL_BAUD);
 
   setupSwitches();
   stepperController.begin();
   servoController.begin();
 
-  Serial.println(F("Single-Button Fire Sequence Ready."));
+  Serial.println(
+    F("HDM Motor and Servo Controller Ready.")
+  );
+
   printCommands();
 }
 
-// Keeps polling the serial input stream so new commands are handled continuously.
-void loop() {
+// Continuously checks for new serial commands.
+void loop()
+{
   readSerialCommands();
 }
