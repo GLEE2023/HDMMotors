@@ -31,8 +31,25 @@ float Axes::getLeadPuckLevelMillimeters(uint8_t puckLevel) const {
     return 0.0f;
   }
 
+  if (puckLevel == 1) {
+    return Config::FIRST_PUCK_EXTRA_OFFSET_MM;
+  }
+
   return Config::FIRST_PUCK_EXTRA_OFFSET_MM +
-    ((float)puckLevel * Config::PUCK_HEIGHT_MM);
+    ((float)(puckLevel - 1) * Config::PUCK_HEIGHT_MM);
+}
+
+// Infers the current puck level from the physical lead-screw position.
+int8_t Axes::inferLeadPuckLevelFromPosition(long positionSteps) const {
+  const float currentMillimeters = leadStepsToMillimeters(positionSteps);
+
+  for (uint8_t puckLevel = Config::PUCK_COUNT; puckLevel > 0; --puckLevel) {
+    if (currentMillimeters >= getLeadPuckLevelMillimeters(puckLevel)) {
+      return (int8_t)puckLevel;
+    }
+  }
+
+  return 0;
 }
 
 // Moves the lead screw to an absolute step position while clamping it to the valid travel range.
@@ -123,32 +140,61 @@ bool Axes::moveLeadToPuckLevel(uint8_t targetPuckLevel) {
 
 // Raises the elevator by one puck level when that move is still valid.
 bool Axes::moveLeadUpOnePuck() {
-  if (leadPuckLevel < 0) {
-    Serial.println(F("Lead puck level is unknown. Home to bottom with D, then retry."));
-    return false;
+  int8_t currentPuckLevel = leadPuckLevel;
+
+  if (currentPuckLevel < 0) {
+    currentPuckLevel = inferLeadPuckLevelFromPosition(leadPositionSteps);
   }
 
-  if (leadPuckLevel >= Config::PUCK_COUNT) {
+  if (currentPuckLevel >= Config::PUCK_COUNT) {
     Serial.println(F("All configured pucks have already been raised."));
     return false;
   }
 
-  return moveLeadToPuckLevel((uint8_t)(leadPuckLevel + 1));
+  return moveLeadToPuckLevel((uint8_t)(currentPuckLevel + 1));
 }
 
 // Lowers the elevator by one puck level when the current level is known.
 bool Axes::moveLeadDownOnePuck() {
-  if (leadPuckLevel < 0) {
-    Serial.println(F("Lead puck level is unknown. Home to bottom with D, then retry."));
-    return false;
+  int8_t currentPuckLevel = leadPuckLevel;
+
+  if (currentPuckLevel < 0) {
+    currentPuckLevel = inferLeadPuckLevelFromPosition(leadPositionSteps);
   }
 
-  if (leadPuckLevel == 0) {
+  if (currentPuckLevel == 0) {
     Serial.println(F("Lead screw is already at the bottom puck level."));
     return false;
   }
 
-  return moveLeadToPuckLevel((uint8_t)(leadPuckLevel - 1));
+  return moveLeadToPuckLevel((uint8_t)(currentPuckLevel - 1));
+}
+
+// Moves the lead screw up or down by a small relative distance in millimeters.
+void Axes::moveLeadRelativeMillimeters(float millimeters) {
+  if (millimeters == 0.0f) {
+    return;
+  }
+
+  long targetStepPosition = leadPositionSteps + leadMillimetersToSteps(millimeters);
+  moveLeadToStepPosition(targetStepPosition);
+
+  leadPuckLevel = inferLeadPuckLevelFromPosition(leadPositionSteps);
+}
+
+// Moves the lead screw up by 1 mm for alignment checks.
+void Axes::moveLeadUpOneMillimeter() {
+  moveLeadRelativeMillimeters(1.0f);
+}
+
+// Moves the lead screw down by 1 mm for alignment checks.
+void Axes::moveLeadDownOneMillimeter() {
+  moveLeadRelativeMillimeters(-1.0f);
+}
+
+// Returns the currently tracked puck level for the lead screw.
+int8_t Axes::getLeadPuckLevel() const {
+  return leadPuckLevel;
 }
 
 // Moves the lead screw all the way to the top of its travel range.
@@ -160,6 +206,45 @@ void Axes::moveLeadToTop() {
   // Full mechanical top is not necessarily one of the normal
   // puck deployment levels, so require re-homing before W/S.
   leadPuckLevel = -1;
+}
+
+// Drives the lead screw all the way down to the physical bottom stop, ignoring the remembered position.
+void Axes::moveLeadToBottomFullDown() {
+  const long fullTravelSteps = leadMillimetersToSteps(Config::BARREL_HEIGHT_MM);
+  long remainingSteps = fullTravelSteps;
+
+  Serial.println(F("Running lead screw fully down to the bottom stop..."));
+
+  while (remainingSteps > 0) {
+    if (digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW) {
+      break;
+    }
+
+    long chunkSteps = remainingSteps > 2000L ? 2000L : remainingSteps;
+    long completedMovement = stepper.moveSteps(
+      Config::MotorId::LeadScrew,
+      -chunkSteps,
+      Config::LEAD_POSITIVE_DIRECTION_LEVEL,
+      Config::LEAD_PROFILE
+    );
+
+    if (completedMovement != -chunkSteps) {
+      break;
+    }
+
+    remainingSteps += completedMovement;
+  }
+
+  if (digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW) {
+    leadPositionSteps = 0;
+    leadPuckLevel = 0;
+    Serial.println(F("Lead screw reached the physical bottom stop."));
+  }
+  else {
+    leadPositionSteps = 0;
+    leadPuckLevel = -1;
+    Serial.println(F("Lead screw reached the configured travel limit without a bottom-switch trigger."));
+  }
 }
 
 // Moves the lead screw back to the bottom reference position.

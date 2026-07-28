@@ -14,9 +14,14 @@ public:
   // Lead-screw helpers for moving the elevator between puck levels.
   bool moveLeadUpOnePuck();
   bool moveLeadDownOnePuck();
+  void moveLeadUpOneMillimeter();
+  void moveLeadDownOneMillimeter();
+  void moveLeadRelativeMillimeters(float millimeters);
   void moveLeadToTop();
   void moveLeadToBottom();
+  void moveLeadToBottomFullDown();
   void setLeadPositionAsBottom();
+  bool moveLeadToPuckLevel(uint8_t targetPuckLevel);
 
   // Barrel helpers for rotating the chamber to the next or previous firing position.
   void moveBarrelToNextIndex();
@@ -33,6 +38,8 @@ public:
 
   // Reports the current axis state to a serial stream.
   void printStatus(Stream &output) const;
+  // Returns the currently tracked puck level for the lead screw.
+  int8_t getLeadPuckLevel() const;
 
 private:
   StepperController &stepper;
@@ -48,10 +55,10 @@ private:
   float leadStepsToMillimeters(long steps) const;
   // Returns the physical height of a given puck level above the bottom reference.
   float getLeadPuckLevelMillimeters(uint8_t puckLevel) const;
+  // Infers the current puck level from the physical lead-screw position.
+  int8_t inferLeadPuckLevelFromPosition(long positionSteps) const;
   // Moves the lead screw directly to an absolute step position.
   void moveLeadToStepPosition(long targetStepPosition);
-  // Moves the elevator to a named puck level and updates its internal state.
-  bool moveLeadToPuckLevel(uint8_t targetPuckLevel);
 
   // Calculates how many steps one full barrel revolution requires.
   long getBarrelStepsPerRevolution() const;

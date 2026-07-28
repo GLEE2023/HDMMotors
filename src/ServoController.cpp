@@ -47,28 +47,9 @@ void ServoController::moveServosSmooth(
   const unsigned long stepDelay =
     Config::SERVO_STEP_DELAY_MS;
 
-  targetLeft = constrain(targetLeft, 0, 180);
-  targetRight = constrain(targetRight, 0, 180);
-
-  // Continue until both servos reach their targets.
-  while (
-    leftAngle != targetLeft ||
-    rightAngle != targetRight
-  )
-  {
-    // Move left servo toward its target.
-    if (leftAngle < targetLeft)
-    {
-      leftAngle += stepSize;
-
-      if (leftAngle > targetLeft)
-      {
-        leftAngle = targetLeft;
-      }
-    }
-    else if (leftAngle > targetLeft)
-    {
-      leftAngle -= stepSize;
+  while (leftAngle != targetLeft && rightAngle != targetRight) {
+    if (leftAngle < targetLeft) leftAngle += step;
+    else if (leftAngle > targetLeft) leftAngle -= step;
 
       if (leftAngle < targetLeft)
       {

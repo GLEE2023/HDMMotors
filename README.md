@@ -1,6 +1,6 @@
 # GLEE HDM Puck Delivery Controller
 
-This project is a PlatformIO firmware for an Arduino Nano that controls a small puck-delivery mechanism. It combines three stepper motors, two firing servos, and a simple serial command interface so the system can be operated manually or through a higher-level controller.
+This project is a PlatformIO firmware for an Arduino Nano that controls a small puck-delivery mechanism. It combines a lead-screw stepper, a barrel indexer, a yaw axis, two firing servos, and a simple serial command interface so the system can be operated manually or through a higher-level controller.
 
 The firmware is organized around four main behaviors:
 
@@ -26,7 +26,7 @@ The repository is split into a small set of source and header files:
 
 - [src/main.cpp](src/main.cpp): top-level serial command parser and startup/loop logic
 - [src/Axes.cpp](src/Axes.cpp): control logic for lead screw, barrel, and yaw movement
-- [src/StepperController.cpp](src/StepperController.cpp): low-level TMC5160 driver setup and step pulse generation
+- [src/StepperController.cpp](src/StepperController.cpp): low-level motion driver setup for the lead-screw TMC5160 and standalone barrel/yaw STEP/DIR control
 - [src/ServoController.cpp](src/ServoController.cpp): servo reset/arm/fire behavior
 - [include/Config.h](include/Config.h): hardware pins, motion profiles, servo angles, and mechanical constants
 
@@ -36,7 +36,7 @@ The repository is split into a small set of source and header files:
 2. Connect the Arduino Nano to USB.
 3. Build and upload the `nanoatmega328` environment from [platformio.ini](platformio.ini).
 4. Open the serial monitor at 115200 baud.
-5. Try a simple command such as `e` to arm the servos, `C` to print the current system status, or `T` to run the TMC5160 SPI connection test.
+5. Try a simple command such as `e` to arm the servos, `C` to print the current system status, or `T` to run the lead-screw TMC5160 SPI connection test.
 
 The firmware targets an Arduino Nano-compatible board and uses the following PlatformIO settings:
 
@@ -84,7 +84,7 @@ For serial debugging, the default monitor settings are set to 115200 baud with n
 
 ## Hardware Overview and Pinout
 
-This project uses three TMC5160 stepper drivers and two hobby servos. The Nano pin mapping is defined in [include/Config.h](include/Config.h).
+This project uses one TMC5160 stepper driver for the lead screw and two standalone TMC2209 STEP/DIR drivers for the barrel and yaw axes, plus two servos. The Nano pin mapping is defined in [include/Config.h](include/Config.h).
 
 ### Stepper Drivers
 
@@ -92,15 +92,10 @@ This project uses three TMC5160 stepper drivers and two hobby servos. The Nano p
 |---|---:|
 | Lead STEP | D2 |
 | Lead DIR | D3 |
-| Lead ENABLE | D4 |
-| Barrel STEP | D5 |
-| Barrel DIR | D6 |
-| Barrel ENABLE | D7 |
-| Yaw STEP | A0 |
-| Yaw DIR | A1 |
-| Yaw ENABLE | A2 |
-| Yaw SPI CS | D8 |
-| Barrel SPI CS | D9 |
+| Barrel STEP | D6 |
+| Barrel DIR | D5 |
+| Yaw STEP | D8 |
+| Yaw DIR | D7 |
 | Lead SPI CS | D10 |
 | Shared MOSI | D11 |
 | Shared MISO | D12 |
@@ -110,8 +105,8 @@ This project uses three TMC5160 stepper drivers and two hobby servos. The Nano p
 
 | Servo | Nano pin |
 |---|---:|
-| Left servo signal | A3 |
-| Right servo signal | A4 |
+| Left servo signal | A1 |
+| Right servo signal | A2 |
 
 The servos should be powered from a suitable external 5 V supply, not from the Nano regulator. The servo ground and the Nano/driver ground should be connected together.
 
@@ -125,6 +120,7 @@ Most of the machine behavior is controlled from [include/Config.h](include/Confi
 - `FIRST_PUCK_EXTRA_OFFSET_MM`: the extra offset applied before the first puck level
 - `LEAD_STEPS_PER_MM`: the step-per-millimeter calibration for the lead screw
 - `BARREL_POSITION_COUNT`: how many barrel indexes exist
+- `BARREL_MICROSTEPS` and `YAW_MICROSTEPS`: the configured standalone-driver microstep resolution
 - `YAW_MINIMUM_DEGREES` and `YAW_MAXIMUM_DEGREES`: the allowed yaw range
 - servo angle constants such as `LEFT_SERVO_REST`, `LEFT_SERVO_ARM`, and `LEFT_SERVO_FIRE`
 
@@ -137,6 +133,7 @@ A few behaviors are worth knowing before using the machine:
 - The elevator is tracked in terms of puck levels and also in physical step position.
 - The barrel is treated as a circular indexer, so movement is optimized to take the shortest route to the requested chamber.
 - The yaw axis is limited to a mechanical range and is clamped to that range when commands are issued.
+- The barrel and yaw motors are driven as standalone TMC2209 STEP/DIR motors without UART, so their motion is controlled by step timing rather than driver configuration registers.
 - The servo motion is smooth by default, and the fire action briefly holds the fire position before returning to rest.
 - The firmware assumes the system is already roughly homed at startup: the lead screw starts at the bottom, the barrel at index 0, and yaw at 0 degrees.
 
@@ -168,8 +165,11 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 |---|---|
 | `W` | Raise the elevator by one puck level |
 | `S` | Lower the elevator by one puck level |
+| `+` | Move the lead screw up by 1 mm for alignment checks |
+| `-` | Move the lead screw down by 1 mm for alignment checks |
 | `A` | Move the lead screw to the full top position |
 | `D` | Move the lead screw back to the bottom reference |
+| `B` | Run the lead screw down, ignoring the remembered position |
 | `L` | Treat the current physical position as the new bottom reference |
 
 ### Barrel Commands

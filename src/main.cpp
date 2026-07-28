@@ -143,107 +143,28 @@ void printCommands()
 {
   Serial.println();
   Serial.println(F("========== COMMANDS =========="));
-
-  Serial.println(
-    F("  F / f   Run complete single-puck deployment")
-  );
-
-  Serial.println(
-    F("  H / h   Print this command menu")
-  );
-
-  Serial.println();
-  Serial.println(F("  SERVO COMMANDS"));
-
-  Serial.println(
-    F("  w       Reset both servos")
-  );
-
-  Serial.println(
-    F("  e       Arm both servos")
-  );
-
-  Serial.println(
-    F("  p       Fire RIGHT servo only")
-  );
-
-  Serial.println(
-    F("  L / l   Fire LEFT servo only")
-  );
-
-  Serial.println(
-    F("  M / m   Fire BOTH servos")
-  );
-
-  Serial.println();
-  Serial.println(F("  LEAD-SCREW COMMANDS"));
-
-  Serial.println(
-    F("  W / S   Raise / lower elevator one puck")
-  );
-
-  Serial.println(
-    F("  A / D   Move lead screw to top / bottom")
-  );
-
-  Serial.println(
-    F("  B       Set current lead position as bottom")
-  );
-
-  Serial.println();
-  Serial.println(F("  BARREL COMMANDS"));
-
-  Serial.println(
-    F("  N / P   Move barrel to next / previous index")
-  );
-
-  Serial.println(
-    F("  I5      Move barrel directly to index 5")
-  );
-
-  Serial.println(
-    F("  O       Set current barrel position as index 0")
-  );
-
-  Serial.println();
-  Serial.println(F("  YAW COMMANDS"));
-
-  Serial.println(
-    F("  Y12.5   Move to an absolute yaw angle")
-  );
-
-  Serial.println(
-    F("  R0.25   Move by a relative yaw angle")
-  );
-
-  Serial.println(
-    F("  Z       Set current yaw position as zero")
-  );
-
-  Serial.println();
-  Serial.println(F("  SYSTEM COMMANDS"));
-
-  Serial.println(
-    F("  C       Print system status")
-  );
-
-  Serial.println(
-    F("  T / t   Test TMC5160 SPI connections")
-  );
-
-  Serial.println(
-    F("  X       Disable all stepper motors")
-  );
-
+  Serial.println(F("  F / f   Fire one puck if present"));
+  Serial.println(F("  H / h   Home lead screw to bottom position"));
+  Serial.println(F("  w       Reset servos"));
+  Serial.println(F("  e       Arm servos"));
+  Serial.println(F("  p       Raw servo fire pulse"));
+  Serial.println(F("  W / S   Raise / Lower elevator 1 puck"));
+  Serial.println(F("  A / D   Move lead screw to full-up / bottom"));
+  Serial.println(F("  L       Set current lead position as bottom"));
+  Serial.println(F("  N / P   Move barrel to next / previous index"));
+  Serial.println(F("  I5      Move barrel directly to index 5"));
+  Serial.println(F("  O       Set current barrel position as index 0"));
+  Serial.println(F("  Y12.5   Move absolute yaw angle"));
+  Serial.println(F("  R0.25   Move relative yaw angle"));
+  Serial.println(F("  Z       Set current yaw position as zero"));
+  Serial.println(F("  C       Print system status"));
+  Serial.println(F("  T / t   Test SPI connection for TMC5160 drivers"));
   Serial.println(F("=============================="));
 }
 
-// Runs the complete deployment sequence.
-void executeSinglePuckCycle()
-{
-  Serial.println(
-    F("--- STARTING SINGLE PUCK DEPLOYMENT ---")
-  );
+// Runs one complete fire sequence: detect a puck, fire it, advance the system, and return home.
+void executeSinglePuckCycle() {
+  Serial.println(F("--- STARTING SINGLE PUCK DEPLOYMENT ---"));
 
   if (!isPuckInBarrel())
   {
@@ -258,10 +179,41 @@ void executeSinglePuckCycle()
     return;
   }
 
+  int8_t currentPuckLevel = axes.getLeadPuckLevel();
+
+  if (currentPuckLevel < 0) {
+    currentPuckLevel = 0;
+  }
+
+  uint8_t targetPuckLevel = currentPuckLevel <= 0 ? 1 : (uint8_t)currentPuckLevel;
+
+  if (targetPuckLevel > Config::PUCK_COUNT) {
+    Serial.println(F("No additional puck level available. Returning elevator to bottom position..."));
+    axes.moveLeadToBottom();
+    return;
+  }
+
+  Serial.print(F("Positioning puck level "));
+  Serial.println(targetPuckLevel);
+
+  if (!axes.moveLeadToPuckLevel(targetPuckLevel)) {
+    Serial.println(F("Unable to position the elevator for the current puck level."));
+    return;
+  }
+
+  Serial.println(F("Arming servos..."));
+  servoController.arm();
+
+  Serial.println(F("Dropping lead screw 3 mm for launch..."));
+  axes.moveLeadRelativeMillimeters(-3.0f);
+
   Serial.println(F("Launching puck..."));
 
   // Both servos fire during the automatic deployment.
   servoController.fire();
+
+  Serial.println(F("Returning lead screw to normal height..."));
+  axes.moveLeadRelativeMillimeters(3.0f);
 
   Serial.println(
     F("Raising lead screw for the next puck...")
@@ -277,22 +229,12 @@ void executeSinglePuckCycle()
 
     axes.moveBarrelToNextIndex();
   }
-  else
-  {
-    Serial.println(
-      F("No additional puck level is available.")
-    );
+  else {
+    Serial.println(F("No additional puck level available. Returning elevator to bottom position..."));
   }
 
-  Serial.println(
-    F("Returning elevator to bottom position...")
-  );
-
+  Serial.println(F("Returning elevator to bottom position..."));
   axes.moveLeadToBottom();
-
-  Serial.println(
-    F("--- DEPLOYMENT CYCLE COMPLETE ---")
-  );
 }
 
 // Parses and executes one serial command.
@@ -398,49 +340,14 @@ void processCommand(const char *command)
 
   const char *valueText = command + 1;
 
-  switch (commandLetter)
-  {
-    // ======================================================
-    // LEAD SCREW
-    // ======================================================
-
-    case 'W':
-      axes.moveLeadUpOnePuck();
-      break;
-
-    case 'S':
-      axes.moveLeadDownOnePuck();
-      break;
-
-    case 'A':
-      axes.moveLeadToTop();
-      break;
-
-    case 'D':
-      axes.moveLeadToBottom();
-      break;
-
-    // Changed from L to B because L is now left servo.
-    case 'B':
-      axes.setLeadPositionAsBottom();
-      Serial.println(
-        F("Current lead position set as bottom.")
-      );
-      break;
-
-    // ======================================================
-    // BARREL
-    // ======================================================
-
-    case 'N':
-      axes.moveBarrelToNextIndex();
-      break;
-
-    // Only uppercase P reaches this case because lowercase p
-    // was already handled as the right-servo command.
-    case 'P':
-      axes.moveBarrelToPreviousIndex();
-      break;
+  switch (commandLetter) {
+    case 'W': axes.moveLeadUpOnePuck(); break;
+    case 'S': axes.moveLeadDownOnePuck(); break;
+    case 'A': axes.moveLeadToTop(); break;
+    case 'D': axes.moveLeadToBottom(); break;
+    case 'L': axes.setLeadPositionAsBottom(); break;
+    case 'N': axes.moveBarrelToNextIndex(); break;
+    case 'P': axes.moveBarrelToPreviousIndex(); break;
 
     case 'I':
     {
