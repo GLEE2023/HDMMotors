@@ -147,9 +147,12 @@ void printCommands()
   Serial.println(F("  H / h   Home lead screw to bottom position"));
   Serial.println(F("  w       Reset servos"));
   Serial.println(F("  e       Arm servos"));
-  Serial.println(F("  p       Raw servo fire pulse"));
+  Serial.println(F("  p       Fire right servo once"));
+  Serial.println(F("  l       Fire left servo once"));
+  Serial.println(F("  m / M   Fire both servos"));
   Serial.println(F("  W / S   Raise / Lower elevator 1 puck"));
-  Serial.println(F("  A / D   Move lead screw to full-up / bottom"));
+  Serial.println(F("  + / -   Move lead screw up / down 1 mm"));
+  Serial.println(F("  A / D / B   Move lead screw to full-up / bottom / full-down"));
   Serial.println(F("  L       Set current lead position as bottom"));
   Serial.println(F("  N / P   Move barrel to next / previous index"));
   Serial.println(F("  I5      Move barrel directly to index 5"));
@@ -159,6 +162,7 @@ void printCommands()
   Serial.println(F("  Z       Set current yaw position as zero"));
   Serial.println(F("  C       Print system status"));
   Serial.println(F("  T / t   Test SPI connection for TMC5160 drivers"));
+  Serial.println(F("  ?       Show this command list"));
   Serial.println(F("=============================="));
 }
 
@@ -266,14 +270,16 @@ void processCommand(const char *command)
   }
 
   // ========================================================
-  // HELP
+  // HOME / HELP
   // ========================================================
 
-  if (
-    cmd == 'H' ||
-    cmd == 'h' ||
-    cmd == '?'
-  )
+  if (cmd == 'H' || cmd == 'h')
+  {
+    axes.moveLeadToBottomFullDown();
+    return;
+  }
+
+  if (cmd == '?')
   {
     printCommands();
     return;
@@ -308,8 +314,8 @@ void processCommand(const char *command)
     return;
   }
 
-  // L or l fires only the left servo.
-  if (cmd == 'L' || cmd == 'l')
+  // Lowercase l fires only the left servo.
+  if (cmd == 'l')
   {
     servoController.fireLeft();
     Serial.println(F("Left servo fired."));
@@ -343,8 +349,11 @@ void processCommand(const char *command)
   switch (commandLetter) {
     case 'W': axes.moveLeadUpOnePuck(); break;
     case 'S': axes.moveLeadDownOnePuck(); break;
+    case '+': axes.moveLeadUpOneMillimeter(); break;
+    case '-': axes.moveLeadDownOneMillimeter(); break;
     case 'A': axes.moveLeadToTop(); break;
     case 'D': axes.moveLeadToBottom(); break;
+    case 'B': axes.moveLeadToBottomFullDown(); break;
     case 'L': axes.setLeadPositionAsBottom(); break;
     case 'N': axes.moveBarrelToNextIndex(); break;
     case 'P': axes.moveBarrelToPreviousIndex(); break;

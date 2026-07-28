@@ -146,7 +146,8 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | Command | Purpose |
 |---|---|
 | `F` or `f` | Run one full puck deployment cycle if a puck is present |
-| `H`, `h`, or `?` | Print the available commands |
+| `H` or `h` | Home the lead screw to the bottom position |
+| `?` | Print the available commands |
 | `C` | Print the current status of the axes and servos |
 | `T` or `t` | Run the TMC5160 SPI connection test over the serial monitor |
 | `X` | Disable all stepper drivers |
@@ -157,7 +158,9 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 |---|---|
 | `w` | Reset servos to the rest position |
 | `e` | Move servos to the armed position |
-| `p` | Fire once and return to rest |
+| `p` | Fire the right servo once and return to rest |
+| `l` | Fire the left servo once and return to rest |
+| `m` or `M` | Fire both servos and return them to rest |
 
 ### Lead-Screw Commands
 

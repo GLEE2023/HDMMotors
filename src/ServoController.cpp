@@ -47,32 +47,34 @@ void ServoController::moveServosSmooth(
   const unsigned long stepDelay =
     Config::SERVO_STEP_DELAY_MS;
 
-  while (leftAngle != targetLeft && rightAngle != targetRight) {
-    if (leftAngle < targetLeft) leftAngle += step;
-    else if (leftAngle > targetLeft) leftAngle -= step;
+  while (leftAngle != targetLeft || rightAngle != targetRight) {
+    if (leftAngle < targetLeft) {
+      leftAngle += stepSize;
 
-      if (leftAngle < targetLeft)
-      {
+      if (leftAngle > targetLeft) {
+        leftAngle = targetLeft;
+      }
+    }
+    else if (leftAngle > targetLeft) {
+      leftAngle -= stepSize;
+
+      if (leftAngle < targetLeft) {
         leftAngle = targetLeft;
       }
     }
 
     // Move right servo toward its target.
-    if (rightAngle < targetRight)
-    {
+    if (rightAngle < targetRight) {
       rightAngle += stepSize;
 
-      if (rightAngle > targetRight)
-      {
+      if (rightAngle > targetRight) {
         rightAngle = targetRight;
       }
     }
-    else if (rightAngle > targetRight)
-    {
+    else if (rightAngle > targetRight) {
       rightAngle -= stepSize;
 
-      if (rightAngle < targetRight)
-      {
+      if (rightAngle < targetRight) {
         rightAngle = targetRight;
       }
     }
