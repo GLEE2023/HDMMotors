@@ -83,7 +83,7 @@ void ServoController::moveServosSmooth(
 
     delay(stepDelay);
   }
-}
+
 
 // Returns both servos to their resting positions.
 void ServoController::reset()
