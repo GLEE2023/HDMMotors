@@ -70,14 +70,8 @@ void ServoController::moveServosSmooth(
     {
       leftAngle -= stepSize;
 
-      if (leftAngle > targetLeft) {
-        leftAngle = targetLeft;
-      }
-    }
-    else if (leftAngle > targetLeft) {
-      leftAngle -= stepSize;
-
-      if (leftAngle < targetLeft) {
+      if (leftAngle < targetLeft)
+      {
         leftAngle = targetLeft;
       }
     }
