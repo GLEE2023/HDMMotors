@@ -3,7 +3,8 @@
 ServoController::ServoController()
   : leftAngle(Config::LEFT_SERVO_REST),
     rightAngle(Config::RIGHT_SERVO_REST)
-{}
+{
+}
 
 // Initializes both servos and places them in their resting positions.
 void ServoController::begin()
@@ -43,13 +44,31 @@ void ServoController::moveServosSmooth(
   int targetRight
 )
 {
+  targetLeft = constrain(targetLeft, 0, 180);
+  targetRight = constrain(targetRight, 0, 180);
+
   const int stepSize = Config::SERVO_ANGLE_STEP;
   const unsigned long stepDelay =
     Config::SERVO_STEP_DELAY_MS;
 
-  while (leftAngle != targetLeft || rightAngle != targetRight) {
-    if (leftAngle < targetLeft) {
+  while (
+    leftAngle != targetLeft ||
+    rightAngle != targetRight
+  )
+  {
+    // Move left servo toward its target.
+    if (leftAngle < targetLeft)
+    {
       leftAngle += stepSize;
+
+      if (leftAngle > targetLeft)
+      {
+        leftAngle = targetLeft;
+      }
+    }
+    else if (leftAngle > targetLeft)
+    {
+      leftAngle -= stepSize;
 
       if (leftAngle > targetLeft) {
         leftAngle = targetLeft;
@@ -79,7 +98,6 @@ void ServoController::moveServosSmooth(
       }
     }
 
-    // Send both commands on every movement step.
     leftServo.write(leftAngle);
     rightServo.write(rightAngle);
 
@@ -97,7 +115,6 @@ void ServoController::reset()
 }
 
 // Feeds/arms both servos.
-// Pressing e in main.cpp calls this function.
 void ServoController::arm()
 {
   moveServosSmooth(
@@ -106,8 +123,7 @@ void ServoController::arm()
   );
 }
 
-// Fires both servos from their current armed position,
-// then returns both servos to rest.
+// Fires both servos and returns them to rest.
 void ServoController::fire()
 {
   moveServosSmooth(
@@ -117,15 +133,11 @@ void ServoController::fire()
 
   delay(Config::SERVO_FIRE_HOLD_MS);
 
-  moveServosSmooth(
-    Config::LEFT_SERVO_REST,
-    Config::RIGHT_SERVO_REST
-  );
+  reset();
 }
 
-// Fires only the left servo from the armed position.
-// The right servo remains armed during the firing movement.
-// After firing, both servos return to rest.
+// Fires only the left servo.
+// The right servo stays at its current position during firing.
 void ServoController::fireLeft()
 {
   const int stationaryRightAngle = rightAngle;
@@ -137,15 +149,11 @@ void ServoController::fireLeft()
 
   delay(Config::SERVO_FIRE_HOLD_MS);
 
-  moveServosSmooth(
-    Config::LEFT_SERVO_REST,
-    Config::RIGHT_SERVO_REST
-  );
+  reset();
 }
 
-// Fires only the right servo from the armed position.
-// The left servo remains armed during the firing movement.
-// After firing, both servos return to rest.
+// Fires only the right servo.
+// The left servo stays at its current position during firing.
 void ServoController::fireRight()
 {
   const int stationaryLeftAngle = leftAngle;
@@ -157,10 +165,7 @@ void ServoController::fireRight()
 
   delay(Config::SERVO_FIRE_HOLD_MS);
 
-  moveServosSmooth(
-    Config::LEFT_SERVO_REST,
-    Config::RIGHT_SERVO_REST
-  );
+  reset();
 }
 
 // Prints the current servo angles.
