@@ -29,6 +29,9 @@ namespace Config {
   constexpr uint8_t YAW_DIRECTION_PIN = 7;
   constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
 
+  // Burnwire trigger output
+  constexpr uint8_t BURNWIRE_TRIGGER_PIN = 9;
+
   // Servo pins
   constexpr uint8_t LEFT_SERVO_PIN = A1;
   constexpr uint8_t RIGHT_SERVO_PIN = A2;

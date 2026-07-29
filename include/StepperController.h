@@ -29,6 +29,15 @@ public:
     bool keepEnabledAfterMove = false
   );
 
+  // Drives the paired barrel/yaw motors in the mechanical relationship required by the hardware.
+  long moveCoordinatedSteps(
+    Config::MotorId motor,
+    long signedSteps,
+    bool positiveDirectionLevel,
+    const Config::MotionProfile &profile,
+    bool keepEnabledAfterMove = false
+  );
+
   // Tests the SPI connection to the installed TMC5160 driver.
   void printConnectionTests(Stream &output);
 

@@ -456,7 +456,7 @@ void Axes::moveYawToDegrees(float targetDegrees) {
   Serial.print(achievableTargetDegrees, 6);
   Serial.println(F(" deg"));
 
-  long completedMovement = stepper.moveSteps(
+  long completedMovement = stepper.moveCoordinatedSteps(
     Config::MotorId::Yaw,
     requestedMovement,
     Config::YAW_POSITIVE_DIRECTION_LEVEL,
@@ -513,7 +513,7 @@ void Axes::moveYawByMicrosteps(long microsteps) {
     return;
   }
 
-  long completedMovement = stepper.moveSteps(
+  long completedMovement = stepper.moveCoordinatedSteps(
     Config::MotorId::Yaw,
     requestedMovement,
     Config::YAW_POSITIVE_DIRECTION_LEVEL,

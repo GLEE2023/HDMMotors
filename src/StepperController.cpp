@@ -271,6 +271,129 @@ long StepperController::moveSteps(
     : -(long)completedSteps;
 }
 
+long StepperController::moveCoordinatedSteps(
+  Config::MotorId motor,
+  long signedSteps,
+  bool positiveDirectionLevel,
+  const Config::MotionProfile &profile,
+  bool keepEnabledAfterMove
+) {
+  if (
+    motor == Config::MotorId::None ||
+    signedSteps == 0
+  ) {
+    return 0;
+  }
+
+  bool movingPositive = signedSteps > 0;
+  bool directionLevel = movingPositive
+    ? positiveDirectionLevel
+    : !positiveDirectionLevel;
+
+  uint8_t primaryStepPin = 255;
+  uint8_t primaryDirectionPin = 255;
+  uint8_t secondaryStepPin = 255;
+  uint8_t secondaryDirectionPin = 255;
+  bool secondaryDirectionLevel = directionLevel;
+
+  switch (motor) {
+    case Config::MotorId::Barrel:
+      primaryStepPin = getStepPin(Config::MotorId::Barrel);
+      primaryDirectionPin = getDirectionPin(Config::MotorId::Barrel);
+      secondaryStepPin = getStepPin(Config::MotorId::Yaw);
+      secondaryDirectionPin = getDirectionPin(Config::MotorId::Yaw);
+      secondaryDirectionLevel = !directionLevel;
+      break;
+
+    case Config::MotorId::Yaw:
+      primaryStepPin = getStepPin(Config::MotorId::Yaw);
+      primaryDirectionPin = getDirectionPin(Config::MotorId::Yaw);
+      secondaryStepPin = getStepPin(Config::MotorId::Barrel);
+      secondaryDirectionPin = getDirectionPin(Config::MotorId::Barrel);
+      secondaryDirectionLevel = directionLevel;
+      break;
+
+    default:
+      return moveSteps(
+        motor,
+        signedSteps,
+        positiveDirectionLevel,
+        profile,
+        keepEnabledAfterMove
+      );
+  }
+
+  if (
+    primaryStepPin == 255 ||
+    primaryDirectionPin == 255 ||
+    secondaryStepPin == 255 ||
+    secondaryDirectionPin == 255
+  ) {
+    return 0;
+  }
+
+  unsigned long totalSteps = movingPositive
+    ? (unsigned long)signedSteps
+    : (unsigned long)(-signedSteps);
+
+  digitalWrite(primaryStepPin, LOW);
+  digitalWrite(secondaryStepPin, LOW);
+  digitalWrite(
+    primaryDirectionPin,
+    directionLevel ? HIGH : LOW
+  );
+  digitalWrite(
+    secondaryDirectionPin,
+    secondaryDirectionLevel ? HIGH : LOW
+  );
+
+  delay(5);
+
+  enableMotor(motor);
+
+  unsigned long completedSteps = 0;
+
+  for (
+    unsigned long stepNumber = 0;
+    stepNumber < totalSteps;
+    stepNumber++
+  ) {
+    if ((stepNumber & 0x0FUL) == 0UL) {
+      if (emergencyStopRequested()) {
+        break;
+      }
+    }
+
+    uint16_t pulseDelay = calculatePulseDelay(
+      stepNumber,
+      totalSteps,
+      profile
+    );
+
+    digitalWrite(primaryStepPin, HIGH);
+    digitalWrite(secondaryStepPin, HIGH);
+    delayMicroseconds(5);
+
+    digitalWrite(primaryStepPin, LOW);
+    digitalWrite(secondaryStepPin, LOW);
+    delayMicroseconds(pulseDelay);
+
+    completedSteps++;
+  }
+
+  digitalWrite(primaryStepPin, LOW);
+  digitalWrite(secondaryStepPin, LOW);
+
+  if (!keepEnabledAfterMove) {
+    disableMotor(Config::MotorId::Barrel);
+    disableMotor(Config::MotorId::Yaw);
+  }
+
+  return movingPositive
+    ? (long)completedSteps
+    : -(long)completedSteps;
+}
+
 void StepperController::printConnectionTests(Stream &output) {
   output.println();
   output.println(F("Stepper-driver checks:"));

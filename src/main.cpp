@@ -28,6 +28,21 @@ void setupSwitches()
   );
 }
 
+// Configures the burnwire trigger output.
+void setupBurnwire()
+{
+  pinMode(Config::BURNWIRE_TRIGGER_PIN, OUTPUT);
+  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, LOW);
+}
+
+// Activates the burnwire for a short pulse using the transistor driver.
+void fireBurnwireForDuration(unsigned long durationMs)
+{
+  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, HIGH);
+  delay(durationMs);
+  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, LOW);
+}
+
 // Returns true when a puck is detected at the firing position.
 bool isPuckInBarrel()
 {
@@ -162,6 +177,7 @@ void printCommands()
   Serial.println(F("  Z       Set current yaw position as zero"));
   Serial.println(F("  C       Print system status"));
   Serial.println(F("  T / t   Test SPI connection for TMC5160 drivers"));
+  Serial.println(F("  U       Pulse burnwire for 4 seconds"));
   Serial.println(F("  ?       Show this command list"));
   Serial.println(F("=============================="));
 }
@@ -334,6 +350,15 @@ void processCommand(const char *command)
   if (cmd == 'T' || cmd == 't')
   {
     stepperController.printConnectionTests(Serial);
+    return;
+  }
+
+  // Pulse the burnwire trigger for 4 seconds.
+  if (cmd == 'U' || cmd == 'u')
+  {
+    Serial.println(F("Burnwire pulse started."));
+    fireBurnwireForDuration(12000);
+    Serial.println(F("Burnwire pulse complete."));
     return;
   }
 
