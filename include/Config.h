@@ -20,7 +20,7 @@ namespace Config {
   constexpr uint8_t LEAD_ENABLE_PIN = UNUSED_PIN;
   constexpr uint8_t LEAD_CHIP_SELECT_PIN = 10;
 
-  // Standalone TMC2209 STEP/DIR pins
+  // Standalone TC78H670FTG STEP/DIR pins
   constexpr uint8_t BARREL_STEP_PIN = 6;
   constexpr uint8_t BARREL_DIRECTION_PIN = 5;
   constexpr uint8_t BARREL_ENABLE_PIN = UNUSED_PIN;
@@ -28,6 +28,9 @@ namespace Config {
   constexpr uint8_t YAW_STEP_PIN = 8;
   constexpr uint8_t YAW_DIRECTION_PIN = 7;
   constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
+
+  // Both TC78H670FTG drivers share this standby/mode-latch signal.
+  constexpr uint8_t TC78_STANDBY_PIN = 4;
 
   // Burnwire trigger output
   constexpr uint8_t BURNWIRE_TRIGGER_PIN = 9;
