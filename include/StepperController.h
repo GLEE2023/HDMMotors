@@ -44,16 +44,22 @@ public:
 private:
   TMC5160Stepper leadDriver;
 
+  // Tracks whether each independently-standby'd driver is currently awake.
+  bool barrelDriverAwake;
+  bool yawDriverAwake;
+
   // Applies the standard current and microstep settings for the lead-screw driver.
   void configureLeadDriver();
 
-  // Keeps the interface compatible with the existing motion architecture.
+  // Wakes the motor's standby line, re-latching the fixed microstep mode.
   void enableMotor(Config::MotorId motor);
 
   // Maps a logical motor to the pin that toggles its step signal.
   uint8_t getStepPin(Config::MotorId motor) const;
   // Maps a logical motor to the pin that selects its movement direction.
   uint8_t getDirectionPin(Config::MotorId motor) const;
+  // Maps a logical motor to its standby/mode-latch pin, if it has one.
+  uint8_t getStandbyPin(Config::MotorId motor) const;
 
   // Calculates the delay between step pulses so the move accelerates and decelerates smoothly.
   uint16_t calculatePulseDelay(

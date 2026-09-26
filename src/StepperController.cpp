@@ -1,7 +1,9 @@
 #include "StepperController.h"
 
 StepperController::StepperController()
-  : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE)
+  : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE),
+    barrelDriverAwake(false),
+    yawDriverAwake(false)
 {}
 
 void StepperController::begin() {
@@ -17,8 +19,9 @@ void StepperController::begin() {
     pinMode(Config::YAW_STEP_PIN, OUTPUT);
     pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
 
-    // Shared standby pin for both TC78H670FTG drivers
-    pinMode(Config::TC78_STANDBY_PIN, OUTPUT);
+    // Independent standby pins for each TC78H670FTG driver
+    pinMode(Config::BARREL_STANDBY_PIN, OUTPUT);
+    pinMode(Config::YAW_STANDBY_PIN, OUTPUT);
 
     digitalWrite(Config::LEAD_STEP_PIN, LOW);
     digitalWrite(Config::LEAD_DIRECTION_PIN, LOW);
@@ -30,10 +33,16 @@ void StepperController::begin() {
     digitalWrite(Config::YAW_DIRECTION_PIN, HIGH);
 
     // Reset both drivers and latch fixed 1/8-step clock-input mode.
-    digitalWrite(Config::TC78_STANDBY_PIN, LOW);
+    digitalWrite(Config::BARREL_STANDBY_PIN, LOW);
+    digitalWrite(Config::YAW_STANDBY_PIN, LOW);
     delay(2);
-    digitalWrite(Config::TC78_STANDBY_PIN, HIGH);
+    digitalWrite(Config::BARREL_STANDBY_PIN, HIGH);
+    digitalWrite(Config::YAW_STANDBY_PIN, HIGH);
     delay(2);
+
+    // Both drivers are physically powered/holding torque at this point.
+    barrelDriverAwake = true;
+    yawDriverAwake = true;
 
     // Lead screw remains completely unchanged.
     pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
@@ -54,8 +63,9 @@ void StepperController::configureLeadDriver() {
 
 void StepperController::disableAllMotors() {
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
-  digitalWrite(Config::BARREL_STEP_PIN, LOW);
-  digitalWrite(Config::YAW_STEP_PIN, LOW);
+
+  disableMotor(Config::MotorId::Barrel);
+  disableMotor(Config::MotorId::Yaw);
 }
 
 uint8_t StepperController::getStepPin(Config::MotorId motor) const {
@@ -92,16 +102,71 @@ uint8_t StepperController::getDirectionPin(Config::MotorId motor) const {
   }
 }
 
+uint8_t StepperController::getStandbyPin(Config::MotorId motor) const {
+  switch (motor) {
+    case Config::MotorId::Barrel:
+      return Config::BARREL_STANDBY_PIN;
+
+    case Config::MotorId::Yaw:
+      return Config::YAW_STANDBY_PIN;
+
+    case Config::MotorId::LeadScrew:
+    case Config::MotorId::None:
+    default:
+      return 255;
+  }
+}
+
 void StepperController::disableMotor(Config::MotorId motor) {
   uint8_t stepPin = getStepPin(motor);
 
   if (stepPin != 255) {
     digitalWrite(stepPin, LOW);
   }
+
+  uint8_t standbyPin = getStandbyPin(motor);
+
+  if (standbyPin != 255) {
+    digitalWrite(standbyPin, LOW);
+
+    if (motor == Config::MotorId::Barrel) {
+      barrelDriverAwake = false;
+    }
+    else if (motor == Config::MotorId::Yaw) {
+      yawDriverAwake = false;
+    }
+  }
 }
 
 void StepperController::enableMotor(Config::MotorId motor) {
-  (void)motor;
+  uint8_t standbyPin = getStandbyPin(motor);
+
+  if (standbyPin == 255) {
+    return;
+  }
+
+  bool &driverAwake = (motor == Config::MotorId::Barrel)
+    ? barrelDriverAwake
+    : yawDriverAwake;
+
+  if (driverAwake) {
+    return;
+  }
+
+  uint8_t stepPin = getStepPin(motor);
+  uint8_t directionPin = getDirectionPin(motor);
+
+  // Waking from standby re-latches the driver mode, so the mode-select
+  // pattern (M2 LOW / M3 HIGH) must be reapplied before STBY rises again.
+  digitalWrite(stepPin, LOW);
+  digitalWrite(directionPin, HIGH);
+
+  digitalWrite(standbyPin, LOW);
+  delay(Config::ENABLE_SETTLE_TIME_MS);
+  digitalWrite(standbyPin, HIGH);
+  delay(Config::ENABLE_SETTLE_TIME_MS);
+
+  driverAwake = true;
 }
 
 uint16_t StepperController::calculatePulseDelay(
@@ -226,6 +291,10 @@ long StepperController::moveSteps(
 
   digitalWrite(stepPin, LOW);
 
+  // Wake the driver (and re-latch its mode) before the real move direction is set,
+  // since waking forces the direction pin to the mode-select pattern.
+  enableMotor(motor);
+
   digitalWrite(
     directionPin,
     directionLevel ? HIGH : LOW
@@ -233,8 +302,6 @@ long StepperController::moveSteps(
 
   // Match the working standalone test more closely.
   delay(5);
-
-  enableMotor(motor);
 
   unsigned long completedSteps = 0;
 
@@ -345,6 +412,12 @@ long StepperController::moveCoordinatedSteps(
 
   digitalWrite(primaryStepPin, LOW);
   digitalWrite(secondaryStepPin, LOW);
+
+  // Both motors physically step together here, so both standby pins must be
+  // awake before the real move direction is set (waking forces the mode pattern).
+  enableMotor(Config::MotorId::Barrel);
+  enableMotor(Config::MotorId::Yaw);
+
   digitalWrite(
     primaryDirectionPin,
     directionLevel ? HIGH : LOW
@@ -355,8 +428,6 @@ long StepperController::moveCoordinatedSteps(
   );
 
   delay(5);
-
-  enableMotor(motor);
 
   unsigned long completedSteps = 0;
 
