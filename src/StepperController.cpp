@@ -5,41 +5,34 @@ StepperController::StepperController()
 {}
 
 void StepperController::begin() {
-    // Lead-screw TMC5160 pins
-    pinMode(Config::LEAD_STEP_PIN, OUTPUT);
-    pinMode(Config::LEAD_DIRECTION_PIN, OUTPUT);
+  // Lead screw pins
+  pinMode(Config::LEAD_STEP_PIN, OUTPUT);
+  pinMode(Config::LEAD_DIRECTION_PIN, OUTPUT);
 
-    // TC78H670FTG barrel pins
-    pinMode(Config::BARREL_STEP_PIN, OUTPUT);
-    pinMode(Config::BARREL_DIRECTION_PIN, OUTPUT);
+  // Barrel standalone TMC2209 STEP/DIR pins
+  pinMode(Config::BARREL_STEP_PIN, OUTPUT);
+  pinMode(Config::BARREL_DIRECTION_PIN, OUTPUT);
 
-    // TC78H670FTG yaw pins
-    pinMode(Config::YAW_STEP_PIN, OUTPUT);
-    pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
+  // Yaw standalone TMC2209 STEP/DIR pins
+  pinMode(Config::YAW_STEP_PIN, OUTPUT);
+  pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
 
-    // Shared standby pin for both TC78H670FTG drivers
-    pinMode(Config::TC78_STANDBY_PIN, OUTPUT);
+  // Initial STEP and DIR states
+  digitalWrite(Config::LEAD_STEP_PIN, LOW);
+  digitalWrite(Config::LEAD_DIRECTION_PIN, LOW);
 
-    digitalWrite(Config::LEAD_STEP_PIN, LOW);
-    digitalWrite(Config::LEAD_DIRECTION_PIN, LOW);
+  digitalWrite(Config::BARREL_STEP_PIN, LOW);
+  digitalWrite(Config::BARREL_DIRECTION_PIN, LOW);
 
-    // M2 must be LOW and M3 HIGH when STBY rises.
-    digitalWrite(Config::BARREL_STEP_PIN, LOW);
-    digitalWrite(Config::BARREL_DIRECTION_PIN, HIGH);
-    digitalWrite(Config::YAW_STEP_PIN, LOW);
-    digitalWrite(Config::YAW_DIRECTION_PIN, HIGH);
+  digitalWrite(Config::YAW_STEP_PIN, LOW);
+  digitalWrite(Config::YAW_DIRECTION_PIN, LOW);
 
-    // Reset both drivers and latch fixed 1/8-step clock-input mode.
-    digitalWrite(Config::TC78_STANDBY_PIN, LOW);
-    delay(2);
-    digitalWrite(Config::TC78_STANDBY_PIN, HIGH);
-    delay(2);
+  // Only the lead-screw TMC5160 remains on SPI.
+  pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
+  digitalWrite(Config::LEAD_CHIP_SELECT_PIN, HIGH);
 
-    // Lead screw remains completely unchanged.
-    pinMode(Config::LEAD_CHIP_SELECT_PIN, OUTPUT);
-    digitalWrite(Config::LEAD_CHIP_SELECT_PIN, HIGH);
-    SPI.begin();
-    configureLeadDriver();
+  SPI.begin();
+  configureLeadDriver();
 }
 
 void StepperController::configureLeadDriver() {
