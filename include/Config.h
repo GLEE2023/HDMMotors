@@ -29,9 +29,8 @@ namespace Config {
   constexpr uint8_t YAW_DIRECTION_PIN = 7;
   constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
 
-  // Independent standby/mode-latch signals so each TC78H670FTG driver can be slept separately.
-  constexpr uint8_t BARREL_STANDBY_PIN = 4;
-  constexpr uint8_t YAW_STANDBY_PIN = A0;
+  // Both TC78H670FTG drivers share this standby/mode-latch signal.
+  constexpr uint8_t TC78_STANDBY_PIN = 4;
 
   // Burnwire trigger output
   constexpr uint8_t BURNWIRE_TRIGGER_PIN = 9;
