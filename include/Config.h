@@ -15,30 +15,30 @@ namespace Config {
   constexpr uint8_t UNUSED_PIN = 255;
 
   // Lead-screw TMC5160 pins
-  constexpr uint8_t LEAD_STEP_PIN = 2;
-  constexpr uint8_t LEAD_DIRECTION_PIN = 3;
+  constexpr uint8_t LEAD_STEP_PIN = 6;
+  constexpr uint8_t LEAD_DIRECTION_PIN = 7;
   constexpr uint8_t LEAD_ENABLE_PIN = UNUSED_PIN;
   constexpr uint8_t LEAD_CHIP_SELECT_PIN = 10;
 
   // Standalone TMC2209 STEP/DIR pins
-  constexpr uint8_t BARREL_STEP_PIN = 6;
+  constexpr uint8_t BARREL_STEP_PIN = 4;
   constexpr uint8_t BARREL_DIRECTION_PIN = 5;
   constexpr uint8_t BARREL_ENABLE_PIN = UNUSED_PIN;
 
-  constexpr uint8_t YAW_STEP_PIN = 8;
-  constexpr uint8_t YAW_DIRECTION_PIN = 7;
+  constexpr uint8_t YAW_STEP_PIN = 2;
+  constexpr uint8_t YAW_DIRECTION_PIN = 3;
   constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
 
   // Burnwire trigger output
-  constexpr uint8_t BURNWIRE_TRIGGER_PIN = 9;
+  constexpr uint8_t BURNWIRE_TRIGGER_PIN = UNUSED_PIN;
 
   // Servo pins
   constexpr uint8_t LEFT_SERVO_PIN = A1;
   constexpr uint8_t RIGHT_SERVO_PIN = A2;
 
   // Limit-switch pins
-  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = A4;
-  constexpr uint8_t TOP_BARREL_SWITCH_PIN = A5;
+  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = UNUSED_PIN;
+  constexpr uint8_t TOP_BARREL_SWITCH_PIN = UNUSED_PIN;
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
