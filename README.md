@@ -74,6 +74,9 @@ board = nanoatmega328new
 framework = arduino
 
 monitor_speed = 115200
+monitor_echo = yes
+monitor_eol = LF
+monitor_filters = send_on_enter
 
 lib_deps =
     teemuatlut/TMCStepper
@@ -90,12 +93,12 @@ This project uses one TMC5160 stepper driver for the lead screw and two standalo
 
 | Function | Nano pin |
 |---|---:|
-| Lead STEP | D2 |
-| Lead DIR | D3 |
-| Barrel STEP | D6 |
+| Lead STEP | D6 |
+| Lead DIR | D7 |
+| Barrel STEP | D4 |
 | Barrel DIR | D5 |
-| Yaw STEP | D8 |
-| Yaw DIR | D7 |
+| Yaw STEP | D2 |
+| Yaw DIR | D3 |
 | Lead SPI CS | D10 |
 | Shared MOSI | D11 |
 | Shared MISO | D12 |
@@ -110,21 +113,47 @@ This project uses one TMC5160 stepper driver for the lead screw and two standalo
 
 The servos should be powered from a suitable external 5 V supply, not from the Nano regulator. The servo ground and the Nano/driver ground should be connected together.
 
+The driver enable pins, burnwire trigger, bottom limit switch, and top barrel/puck switch are currently set to `UNUSED_PIN` (`255`) in the firmware. Connect and configure those signals before relying on switch-based puck detection, bottom homing, motor-enable control, or burnwire output.
+
 ## Important Configuration Values
 
-Most of the machine behavior is controlled from [include/Config.h](include/Config.h). The values you are most likely to adjust are:
+The active values from [include/Config.h](include/Config.h) are listed below.
 
-- `PUCK_HEIGHT_MM`: the vertical spacing between puck levels
-- `BARREL_HEIGHT_MM`: the overall travel height of the lead screw
-- `PUCK_COUNT`: how many puck levels the system understands
-- `FIRST_PUCK_EXTRA_OFFSET_MM`: the extra offset applied before the first puck level
-- `LEAD_STEPS_PER_MM`: the step-per-millimeter calibration for the lead screw
-- `BARREL_POSITION_COUNT`: how many barrel indexes exist
-- `BARREL_MICROSTEPS` and `YAW_MICROSTEPS`: the configured standalone-driver microstep resolution
-- `YAW_MINIMUM_DEGREES` and `YAW_MAXIMUM_DEGREES`: the allowed yaw range
-- servo angle constants such as `LEFT_SERVO_REST`, `LEFT_SERVO_ARM`, and `LEFT_SERVO_FIRE`
+### Lead Screw
 
-The lead-screw calibration is especially important. The current value is a starting point and should be adjusted if the real motion does not match the commanded motion.
+| Setting | Current value |
+|---|---:|
+| Puck-level spacing | 14 mm |
+| Configured travel height | 250 mm |
+| Puck levels | 18 |
+| First-level offset from bottom | 10 mm |
+| Calibration | 100.8 steps/mm |
+| Driver current | 1400 mA |
+| Microsteps | 4 |
+| Motion profile (start / cruise / acceleration) | 2400 / 1400 us / 300 steps |
+
+### Barrel and Yaw
+
+| Setting | Barrel | Yaw |
+|---|---:|---:|
+| Driver current | 600 mA | 600 mA |
+| Microsteps | 8 | 8 |
+| Motor full steps/revolution | 200 | 200 |
+| Gear ratio | 111:20 (5.55:1) | 111:20 (5.55:1) |
+| Indexes / angle limits | 6 indexes | -30 to +30 degrees |
+| Motion profile (start / cruise / acceleration) | 1800 / 700 us / 100 steps | 2400 / 1200 us / 160 steps |
+
+Yaw is configured to hold its position after a move. The lead-screw calibration is especially important and should be adjusted if physical travel does not match commanded travel.
+
+### Servos and Timing
+
+| Setting | Left servo | Right servo |
+|---|---:|---:|
+| Rest angle | 180 degrees | 0 degrees |
+| Armed angle | 135 degrees | 45 degrees |
+| Fire angle | 40 degrees | 140 degrees |
+
+Servo movements change by 5 degrees every 20 ms; the fire position is held for 300 ms. Step pulses are high for 5 us, direction setup is 20 us, and driver settling is 2 ms. The configured sense resistor is 0.075 ohm and serial baud is 115200.
 
 ## Motion and Behavior Notes
 
@@ -151,6 +180,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `C` | Print the current status of the axes and servos |
 | `T` or `t` | Run the TMC5160 SPI connection test over the serial monitor |
 | `X` | Disable all stepper drivers |
+| `U` or `u` | Pulse the burnwire output for 12 seconds |
 
 ### Servo Commands
 
@@ -194,4 +224,4 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 
 ## Notes for New Users
 
-The firmware does not currently use encoders or automatic homing sensors. If the mechanism is moved by hand, stalls, skips steps, or is changed while a motor is disabled, the software position can become inaccurate. In that case, the physical position should be re-established with the appropriate `L`, `O`, or `Z` command.
+The firmware does not currently use encoders. The bottom and top barrel/puck switches are also unassigned in the current configuration, so switch-based homing and puck detection are not ready to use. If the mechanism is moved by hand, stalls, skips steps, or is changed while a motor is disabled, the software position can become inaccurate. In that case, the physical position should be re-established with the appropriate `L`, `O`, or `Z` command.
