@@ -171,15 +171,20 @@ bool Axes::moveLeadDownOnePuck() {
 }
 
 // Moves the lead screw up or down by a small relative distance in millimeters.
-void Axes::moveLeadRelativeMillimeters(float millimeters) {
+bool Axes::moveLeadRelativeMillimeters(float millimeters) {
   if (millimeters == 0.0f) {
-    return;
+    return true;
   }
 
   long targetStepPosition = leadPositionSteps + leadMillimetersToSteps(millimeters);
   moveLeadToStepPosition(targetStepPosition);
 
-  leadPuckLevel = inferLeadPuckLevelFromPosition(leadPositionSteps);
+  const bool movementCompleted = leadPositionSteps == targetStepPosition;
+  leadPuckLevel = movementCompleted
+    ? inferLeadPuckLevelFromPosition(leadPositionSteps)
+    : -1;
+
+  return movementCompleted;
 }
 
 // Moves the lead screw up by 1 mm for alignment checks.
@@ -195,6 +200,11 @@ void Axes::moveLeadDownOneMillimeter() {
 // Returns the currently tracked puck level for the lead screw.
 int8_t Axes::getLeadPuckLevel() const {
   return leadPuckLevel;
+}
+
+// Returns the tracked lead-screw position relative to its bottom reference.
+float Axes::getLeadPositionMillimeters() const {
+  return leadStepsToMillimeters(leadPositionSteps);
 }
 
 // Moves the lead screw all the way to the top of its travel range.

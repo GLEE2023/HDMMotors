@@ -42,7 +42,7 @@ namespace Config {
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
-  constexpr uint8_t DIRECTION_SETUP_TIME_US = 20;
+  constexpr uint8_t DIRECTION_SETUP_DELAY_MS = 5;
   constexpr uint8_t ENABLE_SETTLE_TIME_MS = 2;
 
   enum class MotorId : uint8_t {
@@ -66,6 +66,9 @@ namespace Config {
   constexpr float BARREL_HEIGHT_MM = 250.0f;
   constexpr uint8_t PUCK_COUNT = 18;
   constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 10.0f;
+  constexpr float FULL_DEPLOYMENT_STAGING_MM = 5.0f;
+  constexpr float FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM = 2.0f;
+  constexpr float FULL_DEPLOYMENT_POST_FIRE_LOWER_MM = 3.0f;
 
   constexpr uint16_t LEAD_CURRENT_MA = 1400;
   constexpr uint16_t LEAD_MICROSTEPS = 4;

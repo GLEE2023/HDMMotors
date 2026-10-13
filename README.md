@@ -15,6 +15,7 @@ This firmware is meant to drive a mechanical puck launcher with a single-button 
 
 - detect whether a puck is present at the firing position
 - fire one puck at a time
+- run the complete staged deployment sequence for all configured pucks
 - advance the lead screw for the next puck level
 - rotate the barrel to the next chamber
 - return the elevator to the bottom reference position
@@ -153,7 +154,7 @@ Yaw is configured to hold its position after a move. The lead-screw calibration 
 | Armed angle | 135 degrees | 45 degrees |
 | Fire angle | 40 degrees | 140 degrees |
 
-Servo movements change by 5 degrees every 20 ms; the fire position is held for 300 ms. Step pulses are high for 5 us, direction setup is 20 us, and driver settling is 2 ms. The configured sense resistor is 0.075 ohm and serial baud is 115200.
+Servo movements change by 5 degrees every 20 ms; the fire position is held for 300 ms. Step pulses are high for 5 us, with a 5 ms direction-settle delay before each move. The configured sense resistor is 0.075 ohm and serial baud is 115200.
 
 ## Motion and Behavior Notes
 
@@ -166,6 +167,8 @@ A few behaviors are worth knowing before using the machine:
 - The servo motion is smooth by default, and the fire action briefly holds the fire position before returning to rest.
 - The firmware assumes the system is already roughly homed at startup: the lead screw starts at the bottom, the barrel at index 0, and yaw at 0 degrees.
 
+The full deployment command raises each puck level, stages the lead screw, arms and fires both servos, then repeats until `PUCK_COUNT` pucks have been deployed. Its staging lift is capped at the configured `BARREL_HEIGHT_MM`; with the current values, the final puck receives a 2 mm staging lift instead of 5 mm. After the final cycle, the elevator returns to the software-tracked bottom reference.
+
 ## Serial Command Reference
 
 The firmware listens for commands over the serial port at 115200 baud. Commands are processed when a newline is received.
@@ -175,6 +178,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | Command | Purpose |
 |---|---|
 | `F` or `f` | Run one full puck deployment cycle if a puck is present |
+| `G` or `g` | Run the staged deployment sequence for every configured puck, then return the elevator to the bottom reference |
 | `H` or `h` | Home the lead screw to the bottom position |
 | `?` | Print the available commands |
 | `C` | Print the current status of the axes and servos |

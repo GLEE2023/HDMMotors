@@ -159,6 +159,7 @@ void printCommands()
   Serial.println();
   Serial.println(F("========== COMMANDS =========="));
   Serial.println(F("  F / f   Fire one puck if present"));
+  Serial.println(F("  G / g   Run full deployment for all configured pucks"));
   Serial.println(F("  H / h   Home lead screw to bottom position"));
   Serial.println(F("  w       Reset servos"));
   Serial.println(F("  e       Arm servos"));
@@ -257,6 +258,89 @@ void executeSinglePuckCycle() {
   axes.moveLeadToBottom();
 }
 
+// Runs the staged arm-and-fire sequence once for every configured puck.
+void executeFullDeployment() {
+  Serial.println(F("--- STARTING FULL PUCK DEPLOYMENT ---"));
+  Serial.println(F("Returning elevator to the bottom reference..."));
+  axes.moveLeadToBottom();
+
+  if (axes.getLeadPuckLevel() != 0) {
+    Serial.println(F("Unable to return the elevator to its bottom reference; deployment cancelled."));
+    return;
+  }
+
+  for (uint8_t puckNumber = 1; puckNumber <= Config::PUCK_COUNT; ++puckNumber) {
+    Serial.print(F("--- DEPLOYING PUCK "));
+    Serial.print(puckNumber);
+    Serial.print(F(" / "));
+    Serial.print(Config::PUCK_COUNT);
+    Serial.println(F(" ---"));
+
+    if (!axes.moveLeadUpOnePuck()) {
+      Serial.println(F("Unable to raise the next puck; full deployment stopped."));
+      servoController.reset();
+      return;
+    }
+
+    float stagingMillimeters = Config::FULL_DEPLOYMENT_STAGING_MM;
+    const float availableTravelMillimeters =
+      Config::BARREL_HEIGHT_MM - axes.getLeadPositionMillimeters();
+
+    if (stagingMillimeters > availableTravelMillimeters) {
+      stagingMillimeters = availableTravelMillimeters;
+      Serial.print(F("Reducing staging lift to "));
+      Serial.print(stagingMillimeters, 3);
+      Serial.println(F(" mm to stay within configured travel."));
+    }
+
+    if (
+      stagingMillimeters < 0.0f ||
+      (
+        stagingMillimeters > 0.0f &&
+        !axes.moveLeadRelativeMillimeters(stagingMillimeters)
+      )
+    ) {
+      Serial.println(F("Unable to stage the puck; full deployment stopped."));
+      servoController.reset();
+      return;
+    }
+
+    Serial.println(F("Arming servos..."));
+    servoController.arm();
+
+    Serial.println(F("Lowering lead screw 2 mm before firing..."));
+    if (!axes.moveLeadRelativeMillimeters(
+          -Config::FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM
+        )) {
+      Serial.println(F("Unable to position the puck for firing; full deployment stopped."));
+      servoController.reset();
+      return;
+    }
+
+    Serial.println(F("Firing servos..."));
+    servoController.fire();
+
+    Serial.println(F("Lowering lead screw 3 mm after firing..."));
+    if (!axes.moveLeadRelativeMillimeters(
+          -Config::FULL_DEPLOYMENT_POST_FIRE_LOWER_MM
+        )) {
+      Serial.println(F("Unable to finish the puck cycle; full deployment stopped."));
+      return;
+    }
+  }
+
+  Serial.println(F("All configured pucks deployed."));
+  Serial.println(F("Lowering lead screw to the bottom reference..."));
+  axes.moveLeadToBottom();
+
+  if (axes.getLeadPuckLevel() == 0) {
+    Serial.println(F("Full deployment complete; elevator is at the bottom reference."));
+  }
+  else {
+    Serial.println(F("Full deployment finished, but the elevator did not reach the bottom reference."));
+  }
+}
+
 // Parses and executes one serial command.
 void processCommand(const char *command)
 {
@@ -282,6 +366,12 @@ void processCommand(const char *command)
   if (cmd == 'F' || cmd == 'f')
   {
     executeSinglePuckCycle();
+    return;
+  }
+
+  if (cmd == 'G' || cmd == 'g')
+  {
+    executeFullDeployment();
     return;
   }
 

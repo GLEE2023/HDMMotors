@@ -225,7 +225,7 @@ long StepperController::moveSteps(
   );
 
   // Match the working standalone test more closely.
-  delay(5);
+  delay(Config::DIRECTION_SETUP_DELAY_MS);
 
   enableMotor(motor);
 
@@ -249,7 +249,7 @@ long StepperController::moveSteps(
     );
 
     digitalWrite(stepPin, HIGH);
-    delayMicroseconds(5);
+    delayMicroseconds(Config::STEP_HIGH_TIME_US);
 
     digitalWrite(stepPin, LOW);
     delayMicroseconds(pulseDelay);
@@ -347,7 +347,7 @@ long StepperController::moveCoordinatedSteps(
     secondaryDirectionLevel ? HIGH : LOW
   );
 
-  delay(5);
+  delay(Config::DIRECTION_SETUP_DELAY_MS);
 
   enableMotor(motor);
 
@@ -372,7 +372,7 @@ long StepperController::moveCoordinatedSteps(
 
     digitalWrite(primaryStepPin, HIGH);
     digitalWrite(secondaryStepPin, HIGH);
-    delayMicroseconds(5);
+    delayMicroseconds(Config::STEP_HIGH_TIME_US);
 
     digitalWrite(primaryStepPin, LOW);
     digitalWrite(secondaryStepPin, LOW);

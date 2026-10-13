@@ -16,12 +16,13 @@ public:
   bool moveLeadDownOnePuck();
   void moveLeadUpOneMillimeter();
   void moveLeadDownOneMillimeter();
-  void moveLeadRelativeMillimeters(float millimeters);
+  bool moveLeadRelativeMillimeters(float millimeters);
   void moveLeadToTop();
   void moveLeadToBottom();
   void moveLeadToBottomFullDown();
   void setLeadPositionAsBottom();
   bool moveLeadToPuckLevel(uint8_t targetPuckLevel);
+  float getLeadPositionMillimeters() const;
 
   // Barrel helpers for rotating the chamber to the next or previous firing position.
   void moveBarrelToNextIndex();
