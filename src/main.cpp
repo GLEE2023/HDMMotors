@@ -306,9 +306,14 @@ void executeFullDeployment() {
   }
 
   for (uint8_t puckNumber = 1; puckNumber <= Config::PUCK_COUNT; ++puckNumber) {
-    Serial.println(F("Raising next puck..."));
-    if (!axes.moveLeadUpOnePuck()) {
+    if (!axes.moveLeadToPuckLevel(puckNumber)) {
       Serial.println(F("Unable to raise the next puck; full deployment stopped."));
+      servoController.reset();
+      return;
+    }
+
+    if (!axes.moveLeadRelativeMillimeters(Config::PUCK_HEIGHT_MM)) {
+      Serial.println(F("Unable to raise the puck to firing height; full deployment stopped."));
       servoController.reset();
       return;
     }
