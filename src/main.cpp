@@ -159,7 +159,7 @@ void printCommands()
   Serial.println();
   Serial.println(F("========== COMMANDS =========="));
   Serial.println(F("  F / f   Fire one puck if present"));
-  Serial.println(F("  G / g   Run full deployment for all configured pucks"));
+  Serial.println(F("  G / g   Run full deployment with fire confirmation"));
   Serial.println(F("  H / h   Home lead screw to bottom position"));
   Serial.println(F("  w       Reset servos"));
   Serial.println(F("  e       Arm servos"));
@@ -258,10 +258,46 @@ void executeSinglePuckCycle() {
   axes.moveLeadToBottom();
 }
 
+// Waits for confirmation before firing the currently staged puck.
+bool waitForFireConfirmation()
+{
+  Serial.println(F("Press Enter to fire, or type N to cancel."));
+
+  bool hasResponse = false;
+  bool confirmed = true;
+
+  while (true)
+  {
+    if (Serial.available() == 0)
+    {
+      continue;
+    }
+
+    char responseCharacter =
+      static_cast<char>(Serial.read());
+
+    if (responseCharacter == '\r')
+    {
+      continue;
+    }
+
+    if (responseCharacter == '\n')
+    {
+      return !hasResponse || confirmed;
+    }
+
+    if (!hasResponse && responseCharacter != ' ' && responseCharacter != '\t')
+    {
+      hasResponse = true;
+      confirmed =
+        responseCharacter == 'Y' ||
+        responseCharacter == 'y';
+    }
+  }
+}
+
 // Runs the staged arm-and-fire sequence once for every configured puck.
 void executeFullDeployment() {
-  Serial.println(F("--- STARTING FULL PUCK DEPLOYMENT ---"));
-  Serial.println(F("Returning elevator to the bottom reference..."));
   axes.moveLeadToBottom();
 
   if (axes.getLeadPuckLevel() != 0) {
@@ -270,12 +306,7 @@ void executeFullDeployment() {
   }
 
   for (uint8_t puckNumber = 1; puckNumber <= Config::PUCK_COUNT; ++puckNumber) {
-    Serial.print(F("--- DEPLOYING PUCK "));
-    Serial.print(puckNumber);
-    Serial.print(F(" / "));
-    Serial.print(Config::PUCK_COUNT);
-    Serial.println(F(" ---"));
-
+    Serial.println(F("Raising next puck..."));
     if (!axes.moveLeadUpOnePuck()) {
       Serial.println(F("Unable to raise the next puck; full deployment stopped."));
       servoController.reset();
@@ -285,12 +316,8 @@ void executeFullDeployment() {
     float stagingMillimeters = Config::FULL_DEPLOYMENT_STAGING_MM;
     const float availableTravelMillimeters =
       Config::BARREL_HEIGHT_MM - axes.getLeadPositionMillimeters();
-
     if (stagingMillimeters > availableTravelMillimeters) {
       stagingMillimeters = availableTravelMillimeters;
-      Serial.print(F("Reducing staging lift to "));
-      Serial.print(stagingMillimeters, 3);
-      Serial.println(F(" mm to stay within configured travel."));
     }
 
     if (
@@ -305,10 +332,8 @@ void executeFullDeployment() {
       return;
     }
 
-    Serial.println(F("Arming servos..."));
     servoController.arm();
 
-    Serial.println(F("Lowering lead screw 2 mm before firing..."));
     if (!axes.moveLeadRelativeMillimeters(
           -Config::FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM
         )) {
@@ -317,10 +342,17 @@ void executeFullDeployment() {
       return;
     }
 
+    if (!waitForFireConfirmation())
+    {
+      servoController.reset();
+      axes.moveLeadToBottom();
+      Serial.println(F("Deployment cancelled."));
+      return;
+    }
+
     Serial.println(F("Firing servos..."));
     servoController.fire();
 
-    Serial.println(F("Lowering lead screw 3 mm after firing..."));
     if (!axes.moveLeadRelativeMillimeters(
           -Config::FULL_DEPLOYMENT_POST_FIRE_LOWER_MM
         )) {
@@ -329,14 +361,9 @@ void executeFullDeployment() {
     }
   }
 
-  Serial.println(F("All configured pucks deployed."));
-  Serial.println(F("Lowering lead screw to the bottom reference..."));
   axes.moveLeadToBottom();
 
-  if (axes.getLeadPuckLevel() == 0) {
-    Serial.println(F("Full deployment complete; elevator is at the bottom reference."));
-  }
-  else {
+  if (axes.getLeadPuckLevel() != 0) {
     Serial.println(F("Full deployment finished, but the elevator did not reach the bottom reference."));
   }
 }
