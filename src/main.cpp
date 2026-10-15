@@ -17,15 +17,15 @@ uint8_t commandLength = 0;
 // Configures the limit and barrel-presence switches.
 void setupSwitches()
 {
-  pinMode(
-    Config::BOTTOM_LIMIT_SWITCH_PIN,
-    INPUT_PULLUP
-  );
+  if (Config::BOTTOM_LIMIT_SWITCH_PIN != Config::UNUSED_PIN)
+  {
+    pinMode(Config::BOTTOM_LIMIT_SWITCH_PIN, INPUT_PULLUP);
+  }
 
-  pinMode(
-    Config::TOP_BARREL_SWITCH_PIN,
-    INPUT_PULLUP
-  );
+  if (Config::TOP_BARREL_SWITCH_PIN != Config::UNUSED_PIN)
+  {
+    pinMode(Config::TOP_BARREL_SWITCH_PIN, INPUT_PULLUP);
+  }
 }
 
 // Configures the burnwire trigger output.
@@ -46,6 +46,12 @@ void fireBurnwireForDuration(unsigned long durationMs)
 // Returns true when a puck is detected at the firing position.
 bool isPuckInBarrel()
 {
+  // Without a switch the puck cannot be verified, so assume one is present.
+  if (Config::TOP_BARREL_SWITCH_PIN == Config::UNUSED_PIN)
+  {
+    return true;
+  }
+
   // Active-low switch.
   return digitalRead(
     Config::TOP_BARREL_SWITCH_PIN
@@ -55,6 +61,11 @@ bool isPuckInBarrel()
 // Returns true when the elevator reaches the lower limit.
 bool isElevatorAtBottom()
 {
+  if (Config::BOTTOM_LIMIT_SWITCH_PIN == Config::UNUSED_PIN)
+  {
+    return false;
+  }
+
   return digitalRead(
     Config::BOTTOM_LIMIT_SWITCH_PIN
   ) == LOW;

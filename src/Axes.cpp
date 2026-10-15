@@ -52,6 +52,42 @@ int8_t Axes::inferLeadPuckLevelFromPosition(long positionSteps) const {
   return 0;
 }
 
+// Re-evaluates the lead position after the stepper reports a limit microswitch stop.
+// Bottom: elevator is at the bottom. Top: a puck sits in the deployment layer.
+bool Axes::applyLeadLimitEvent() {
+  const StepperController::LeadLimit limit = stepper.takeLeadLimitEvent();
+
+  if (limit == StepperController::LeadLimit::Bottom) {
+    leadPositionSteps = 0;
+    leadPuckLevel = 0;
+    return true;
+  }
+
+  if (limit == StepperController::LeadLimit::Top) {
+    const float currentMillimeters = leadStepsToMillimeters(leadPositionSteps);
+    uint8_t nearestLevel = 0;
+    float nearestDistance = fabsf(currentMillimeters);
+
+    for (uint8_t level = 1; level <= Config::PUCK_COUNT; ++level) {
+      const float distance =
+        fabsf(currentMillimeters - getLeadPuckLevelMillimeters(level));
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestLevel = level;
+      }
+    }
+
+    leadPuckLevel = (int8_t)nearestLevel;
+    leadPositionSteps = leadMillimetersToSteps(
+      getLeadPuckLevelMillimeters(nearestLevel)
+    );
+    return true;
+  }
+
+  return false;
+}
+
 // Moves the lead screw to an absolute step position while clamping it to the valid travel range.
 void Axes::moveLeadToStepPosition(long targetStepPosition) {
   const long totalTravelSteps = leadMillimetersToSteps(
@@ -82,7 +118,12 @@ void Axes::moveLeadToStepPosition(long targetStepPosition) {
 
   leadPositionSteps += completedMovement;
 
-  if (completedMovement == requestedMovement) {
+  const bool limitTripped = applyLeadLimitEvent();
+
+  if (limitTripped) {
+    Serial.println(F("Lead-screw movement ended at a limit microswitch."));
+  }
+  else if (completedMovement == requestedMovement) {
     leadPositionSteps = targetStepPosition;
   }
   else {
@@ -226,7 +267,7 @@ void Axes::moveLeadToBottomFullDown() {
   Serial.println(F("Running lead screw fully down to the bottom stop..."));
 
   while (remainingSteps > 0) {
-    if (digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW) {
+    if (stepper.isLeadBottomSwitchTripped()) {
       break;
     }
 
@@ -245,7 +286,9 @@ void Axes::moveLeadToBottomFullDown() {
     remainingSteps += completedMovement;
   }
 
-  if (digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW) {
+  stepper.takeLeadLimitEvent();
+
+  if (stepper.isLeadBottomSwitchTripped()) {
     leadPositionSteps = 0;
     leadPuckLevel = 0;
     Serial.println(F("Lead screw reached the physical bottom stop."));

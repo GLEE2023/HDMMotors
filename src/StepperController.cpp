@@ -93,6 +93,22 @@ void StepperController::disableMotor(Config::MotorId motor) {
   }
 }
 
+bool StepperController::isLeadTopSwitchTripped() const {
+  return Config::TOP_BARREL_SWITCH_PIN != Config::UNUSED_PIN &&
+    digitalRead(Config::TOP_BARREL_SWITCH_PIN) == LOW;
+}
+
+bool StepperController::isLeadBottomSwitchTripped() const {
+  return Config::BOTTOM_LIMIT_SWITCH_PIN != Config::UNUSED_PIN &&
+    digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
+}
+
+StepperController::LeadLimit StepperController::takeLeadLimitEvent() {
+  LeadLimit event = leadLimitEvent;
+  leadLimitEvent = LeadLimit::None;
+  return event;
+}
+
 void StepperController::enableMotor(Config::MotorId motor) {
   (void)motor;
 }
@@ -217,7 +233,36 @@ long StepperController::moveSteps(
     ? (unsigned long)signedSteps
     : (unsigned long)(-signedSteps);
 
+  const bool isLead = motor == Config::MotorId::LeadScrew;
+
+  if (isLead) {
+    leadLimitEvent = LeadLimit::None;
+  }
+
+  // Positive lead motion is up (top switch); negative is down (bottom switch).
+  auto leadLimitHit = [&]() -> LeadLimit {
+    if (!isLead) {
+      return LeadLimit::None;
+    }
+
+    if (movingPositive && isLeadTopSwitchTripped()) {
+      return LeadLimit::Top;
+    }
+
+    if (!movingPositive && isLeadBottomSwitchTripped()) {
+      return LeadLimit::Bottom;
+    }
+
+    return LeadLimit::None;
+  };
+
   digitalWrite(stepPin, LOW);
+
+  // Refuse to drive further into a limit that is already tripped.
+  if (leadLimitHit() != LeadLimit::None) {
+    leadLimitEvent = leadLimitHit();
+    return 0;
+  }
 
   digitalWrite(
     directionPin,
@@ -238,6 +283,20 @@ long StepperController::moveSteps(
   ) {
     if ((stepNumber & 0x0FUL) == 0UL) {
       if (emergencyStopRequested()) {
+        break;
+      }
+    }
+
+    if (isLead) {
+      LeadLimit hit = leadLimitHit();
+
+      if (hit != LeadLimit::None) {
+        leadLimitEvent = hit;
+        Serial.println(
+          hit == LeadLimit::Top
+            ? F("Top microswitch tripped; lead screw stopped.")
+            : F("Bottom microswitch tripped; lead screw stopped.")
+        );
         break;
       }
     }

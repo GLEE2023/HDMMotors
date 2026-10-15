@@ -41,8 +41,23 @@ public:
   // Tests the SPI connection to the installed TMC5160 driver.
   void printConnectionTests(Stream &output);
 
+  // Which lead-screw limit switch stopped the most recent lead move.
+  enum class LeadLimit : uint8_t {
+    None,
+    Top,
+    Bottom
+  };
+
+  // Active-low switch reads; always false when the pin is UNUSED_PIN.
+  bool isLeadTopSwitchTripped() const;
+  bool isLeadBottomSwitchTripped() const;
+
+  // Returns the limit that halted the last lead move and clears it.
+  LeadLimit takeLeadLimitEvent();
+
 private:
   TMC5160Stepper leadDriver;
+  LeadLimit leadLimitEvent = LeadLimit::None;
 
   // Applies the standard current and microstep settings for the lead-screw driver.
   void configureLeadDriver();

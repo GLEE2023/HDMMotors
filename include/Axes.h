@@ -60,6 +60,8 @@ private:
   int8_t inferLeadPuckLevelFromPosition(long positionSteps) const;
   // Moves the lead screw directly to an absolute step position.
   void moveLeadToStepPosition(long targetStepPosition);
+  // Updates position/puck level after a limit microswitch stop; true if one fired.
+  bool applyLeadLimitEvent();
 
   // Calculates how many steps one full barrel revolution requires.
   long getBarrelStepsPerRevolution() const;
