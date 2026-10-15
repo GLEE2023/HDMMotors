@@ -15,6 +15,14 @@ public:
   bool isLeadTopSwitchTripped() const;
   bool isLeadBottomSwitchTripped() const;
 
+  // The top switch only needs to trip once: the puck stays "detected" until
+  // clearPuckLatch() is called (after the servos fire).
+  void updatePuckLatch();
+  bool isPuckLatched() const;
+  void clearPuckLatch();
+
+  // Both lead top and bottom use active-low switches; the puck switch is optional.
+  bool hasPuckSwitch() const;
   // True when a puck is at the firing position (assumed present without a switch).
   bool isPuckInBarrel() const;
   // True when the elevator reaches the lower limit.
@@ -34,4 +42,5 @@ public:
 
 private:
   bool barrelUnlocked = false;
+  bool puckLatched = false;
 };

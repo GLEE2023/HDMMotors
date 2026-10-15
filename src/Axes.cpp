@@ -53,36 +53,13 @@ int8_t Axes::inferLeadPuckLevelFromPosition(long positionSteps) const {
   return 0;
 }
 
-// Re-evaluates the lead position after the stepper reports a limit microswitch stop.
-// Bottom: elevator is at the bottom. Top: a puck sits in the deployment layer.
+// Re-evaluates the lead position after the stepper reports a bottom microswitch stop.
 bool Axes::applyLeadLimitEvent() {
   const StepperController::LeadLimit limit = stepper.takeLeadLimitEvent();
 
   if (limit == StepperController::LeadLimit::Bottom) {
     leadPositionSteps = 0;
     leadPuckLevel = 0;
-    return true;
-  }
-
-  if (limit == StepperController::LeadLimit::Top) {
-    const float currentMillimeters = leadStepsToMillimeters(leadPositionSteps);
-    uint8_t nearestLevel = 0;
-    float nearestDistance = fabsf(currentMillimeters);
-
-    for (uint8_t level = 1; level <= Config::PUCK_COUNT; ++level) {
-      const float distance =
-        fabsf(currentMillimeters - getLeadPuckLevelMillimeters(level));
-
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestLevel = level;
-      }
-    }
-
-    leadPuckLevel = (int8_t)nearestLevel;
-    leadPositionSteps = leadMillimetersToSteps(
-      getLeadPuckLevelMillimeters(nearestLevel)
-    );
     return true;
   }
 
@@ -294,10 +271,15 @@ void Axes::moveLeadToBottomFullDown() {
     leadPuckLevel = 0;
     Serial.println(F("Lead screw reached the physical bottom stop."));
   }
-  else {
+  else if (remainingSteps <= 0) {
+    // The switch never tripped, so trust the full downward step count instead.
     leadPositionSteps = 0;
+    leadPuckLevel = 0;
+    Serial.println(F("Bottom switch did not trip; assuming bottom from the step count."));
+  }
+  else {
     leadPuckLevel = -1;
-    Serial.println(F("Lead screw reached the configured travel limit without a bottom-switch trigger."));
+    Serial.println(F("Lead screw stopped before reaching the bottom."));
   }
 }
 

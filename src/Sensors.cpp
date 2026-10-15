@@ -31,9 +31,13 @@ bool Sensors::isLeadBottomSwitchTripped() const {
     digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
 }
 
+bool Sensors::hasPuckSwitch() const {
+  return Config::TOP_LIMIT_SWITCH_PIN != Config::UNUSED_PIN;
+}
+
 bool Sensors::isPuckInBarrel() const {
   // Without a switch the puck cannot be verified, so assume one is present.
-  if (Config::TOP_LIMIT_SWITCH_PIN == Config::UNUSED_PIN) {
+  if (!hasPuckSwitch()) {
     return true;
   }
 
@@ -42,6 +46,20 @@ bool Sensors::isPuckInBarrel() const {
 
 bool Sensors::isElevatorAtBottom() const {
   return isLeadBottomSwitchTripped();
+}
+
+void Sensors::updatePuckLatch() {
+  if (isLeadTopSwitchTripped()) {
+    puckLatched = true;
+  }
+}
+
+bool Sensors::isPuckLatched() const {
+  return puckLatched;
+}
+
+void Sensors::clearPuckLatch() {
+  puckLatched = false;
 }
 
 // Activates the burnwire for a short pulse using the transistor driver.

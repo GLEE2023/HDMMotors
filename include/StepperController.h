@@ -12,7 +12,7 @@
 // standalone TMC2209 STEP/DIR drivers without UART.
 class StepperController {
 public:
-  StepperController(const Sensors &sensorsRef);
+  StepperController(Sensors &sensorsRef);
 
   // Initializes pins, SPI, and the configured lead-screw driver.
   void begin();
@@ -45,7 +45,6 @@ public:
   // Which lead-screw limit switch stopped the most recent lead move.
   enum class LeadLimit : uint8_t {
     None,
-    Top,
     Bottom
   };
 
@@ -54,7 +53,7 @@ public:
 
 private:
   TMC5160Stepper leadDriver;
-  const Sensors &sensors;
+  Sensors &sensors;
   LeadLimit leadLimitEvent = LeadLimit::None;
 
   // Applies the standard current and microstep settings for the lead-screw driver.

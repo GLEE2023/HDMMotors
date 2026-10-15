@@ -1,6 +1,6 @@
 #include "StepperController.h"
 
-StepperController::StepperController(const Sensors &sensorsRef)
+StepperController::StepperController(Sensors &sensorsRef)
   : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE),
     sensors(sensorsRef)
 {}
@@ -230,14 +230,10 @@ long StepperController::moveSteps(
     leadLimitEvent = LeadLimit::None;
   }
 
-  // Positive lead motion is up (top switch); negative is down (bottom switch).
+  // Only downward motion is limited by a switch; the top switch just detects a puck.
   auto leadLimitHit = [&]() -> LeadLimit {
     if (!isLead) {
       return LeadLimit::None;
-    }
-
-    if (movingPositive && sensors.isLeadTopSwitchTripped()) {
-      return LeadLimit::Top;
     }
 
     if (!movingPositive && sensors.isLeadBottomSwitchTripped()) {
@@ -279,15 +275,14 @@ long StepperController::moveSteps(
     }
 
     if (isLead) {
+      // Remember a puck trip even if the switch opens again before the move ends.
+      sensors.updatePuckLatch();
+
       LeadLimit hit = leadLimitHit();
 
       if (hit != LeadLimit::None) {
         leadLimitEvent = hit;
-        Serial.println(
-          hit == LeadLimit::Top
-            ? F("Top microswitch tripped; lead screw stopped.")
-            : F("Bottom microswitch tripped; lead screw stopped.")
-        );
+        Serial.println(F("Bottom microswitch tripped; lead screw stopped."));
         break;
       }
     }
