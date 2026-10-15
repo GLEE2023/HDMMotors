@@ -3,13 +3,14 @@
 #include <Arduino.h>
 
 #include "Config.h"
+#include "Sensors.h"
 #include "StepperController.h"
 
 // Coordinates the lead screw, barrel, and yaw mechanisms for puck delivery.
 class Axes {
 public:
-  // Creates the motion controller and stores a reference to the stepper driver.
-  explicit Axes(StepperController &stepperController);
+  // Creates the motion controller and stores references to the stepper driver and sensors.
+  Axes(StepperController &stepperController, Sensors &sensorsRef);
 
   // Lead-screw helpers for moving the elevator between puck levels.
   bool moveLeadUpOnePuck();
@@ -44,6 +45,7 @@ public:
 
 private:
   StepperController &stepper;
+  Sensors &sensors;
 
   long leadPositionSteps;
   int8_t leadPuckLevel;

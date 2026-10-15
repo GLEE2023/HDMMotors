@@ -5,13 +5,14 @@
 #include <TMCStepper.h>
 
 #include "Config.h"
+#include "Sensors.h"
 
 // Low-level driver wrapper for the motion system.
 // The lead screw remains a TMC5160 over SPI, while barrel and yaw use
 // standalone TMC2209 STEP/DIR drivers without UART.
 class StepperController {
 public:
-  StepperController();
+  StepperController(const Sensors &sensorsRef);
 
   // Initializes pins, SPI, and the configured lead-screw driver.
   void begin();
@@ -48,15 +49,12 @@ public:
     Bottom
   };
 
-  // Active-low switch reads; always false when the pin is UNUSED_PIN.
-  bool isLeadTopSwitchTripped() const;
-  bool isLeadBottomSwitchTripped() const;
-
   // Returns the limit that halted the last lead move and clears it.
   LeadLimit takeLeadLimitEvent();
 
 private:
   TMC5160Stepper leadDriver;
+  const Sensors &sensors;
   LeadLimit leadLimitEvent = LeadLimit::None;
 
   // Applies the standard current and microstep settings for the lead-screw driver.

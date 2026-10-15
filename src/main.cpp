@@ -4,72 +4,17 @@
 
 #include "Axes.h"
 #include "Config.h"
+#include "Sensors.h"
 #include "ServoController.h"
 #include "StepperController.h"
 
-StepperController stepperController;
-Axes axes(stepperController);
+Sensors sensors;
+StepperController stepperController(sensors);
+Axes axes(stepperController, sensors);
 ServoController servoController;
 
 char commandBuffer[32];
 uint8_t commandLength = 0;
-
-// Configures the limit and barrel-presence switches.
-void setupSwitches()
-{
-  if (Config::BOTTOM_LIMIT_SWITCH_PIN != Config::UNUSED_PIN)
-  {
-    pinMode(Config::BOTTOM_LIMIT_SWITCH_PIN, INPUT_PULLUP);
-  }
-
-  if (Config::TOP_BARREL_SWITCH_PIN != Config::UNUSED_PIN)
-  {
-    pinMode(Config::TOP_BARREL_SWITCH_PIN, INPUT_PULLUP);
-  }
-}
-
-// Configures the burnwire trigger output.
-void setupBurnwire()
-{
-  pinMode(Config::BURNWIRE_TRIGGER_PIN, OUTPUT);
-  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, LOW);
-}
-
-// Activates the burnwire for a short pulse using the transistor driver.
-void fireBurnwireForDuration(unsigned long durationMs)
-{
-  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, HIGH);
-  delay(durationMs);
-  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, LOW);
-}
-
-// Returns true when a puck is detected at the firing position.
-bool isPuckInBarrel()
-{
-  // Without a switch the puck cannot be verified, so assume one is present.
-  if (Config::TOP_BARREL_SWITCH_PIN == Config::UNUSED_PIN)
-  {
-    return true;
-  }
-
-  // Active-low switch.
-  return digitalRead(
-    Config::TOP_BARREL_SWITCH_PIN
-  ) == LOW;
-}
-
-// Returns true when the elevator reaches the lower limit.
-bool isElevatorAtBottom()
-{
-  if (Config::BOTTOM_LIMIT_SWITCH_PIN == Config::UNUSED_PIN)
-  {
-    return false;
-  }
-
-  return digitalRead(
-    Config::BOTTOM_LIMIT_SWITCH_PIN
-  ) == LOW;
-}
 
 // Skips separators before numeric command values.
 const char *skipCommandSeparators(const char *text)
@@ -198,7 +143,7 @@ void printCommands()
 void executeSinglePuckCycle() {
   Serial.println(F("--- STARTING SINGLE PUCK DEPLOYMENT ---"));
 
-  if (!isPuckInBarrel())
+  if (!sensors.isPuckInBarrel())
   {
     Serial.println(
       F("No puck detected at the firing position.")
@@ -490,7 +435,7 @@ void processCommand(const char *command)
   if (cmd == 'U' || cmd == 'u')
   {
     Serial.println(F("Burnwire pulse started."));
-    fireBurnwireForDuration(12000);
+    sensors.fireBurnwire(12000);
     Serial.println(F("Burnwire pulse complete."));
     return;
   }
@@ -608,25 +553,7 @@ void processCommand(const char *command)
       axes.printStatus(Serial);
       servoController.printStatus(Serial);
 
-      Serial.print(
-        F("Puck in Barrel Switch: ")
-      );
-
-      Serial.println(
-        isPuckInBarrel()
-          ? F("TRIGGERED")
-          : F("OPEN")
-      );
-
-      Serial.print(
-        F("Elevator Bottom Switch: ")
-      );
-
-      Serial.println(
-        isElevatorAtBottom()
-          ? F("TRIGGERED")
-          : F("OPEN")
-      );
+      sensors.printStatus(Serial);
 
       break;
 
@@ -690,7 +617,7 @@ void setup()
 {
   Serial.begin(Config::SERIAL_BAUD);
 
-  setupSwitches();
+  sensors.begin();
   stepperController.begin();
   servoController.begin();
 

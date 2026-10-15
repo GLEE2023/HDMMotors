@@ -2,8 +2,9 @@
 
 #include "Axes.h"
 
-Axes::Axes(StepperController &stepperController)
+Axes::Axes(StepperController &stepperController, Sensors &sensorsRef)
   : stepper(stepperController),
+    sensors(sensorsRef),
     leadPositionSteps(0),
     leadPuckLevel(0),
     barrelPositionSteps(0),
@@ -267,7 +268,7 @@ void Axes::moveLeadToBottomFullDown() {
   Serial.println(F("Running lead screw fully down to the bottom stop..."));
 
   while (remainingSteps > 0) {
-    if (stepper.isLeadBottomSwitchTripped()) {
+    if (sensors.isLeadBottomSwitchTripped()) {
       break;
     }
 
@@ -288,7 +289,7 @@ void Axes::moveLeadToBottomFullDown() {
 
   stepper.takeLeadLimitEvent();
 
-  if (stepper.isLeadBottomSwitchTripped()) {
+  if (sensors.isLeadBottomSwitchTripped()) {
     leadPositionSteps = 0;
     leadPuckLevel = 0;
     Serial.println(F("Lead screw reached the physical bottom stop."));
@@ -403,12 +404,17 @@ void Axes::moveBarrelToIndex(int targetIndex) {
   Serial.print(F("Moving barrel to index "));
   Serial.println(targetIndex);
 
+  // Release the barrel from the yaw only while it rotates.
+  sensors.unlockBarrel();
+
   long completedMovement = stepper.moveSteps(
     Config::MotorId::Barrel,
     requestedMovement,
     Config::BARREL_POSITIVE_DIRECTION_LEVEL,
     Config::BARREL_PROFILE
   );
+
+  sensors.lockBarrel();
 
   barrelPositionSteps = normalizeBarrelPosition(
     barrelPositionSteps + completedMovement

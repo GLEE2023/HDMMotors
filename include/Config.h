@@ -32,13 +32,18 @@ namespace Config {
   // Burnwire trigger output
   constexpr uint8_t BURNWIRE_TRIGGER_PIN = UNUSED_PIN;
 
+  // Solenoid that unlocks the barrel from the yaw while the barrel rotates
+  constexpr uint8_t BARREL_SOLENOID_PIN = UNUSED_PIN;
+  constexpr uint8_t BARREL_SOLENOID_ACTIVE_LEVEL = HIGH;
+  constexpr uint16_t BARREL_SOLENOID_SETTLE_TIME_MS = 50;
+
   // Servo pins
   constexpr uint8_t LEFT_SERVO_PIN = A1;
   constexpr uint8_t RIGHT_SERVO_PIN = A2;
 
   // Limit-switch pins
   constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = UNUSED_PIN;
-  constexpr uint8_t TOP_BARREL_SWITCH_PIN = UNUSED_PIN;
+  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = A3;
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;

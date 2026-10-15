@@ -1,7 +1,8 @@
 #include "StepperController.h"
 
-StepperController::StepperController()
-  : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE)
+StepperController::StepperController(const Sensors &sensorsRef)
+  : leadDriver(Config::LEAD_CHIP_SELECT_PIN, Config::R_SENSE),
+    sensors(sensorsRef)
 {}
 
 void StepperController::begin() {
@@ -91,16 +92,6 @@ void StepperController::disableMotor(Config::MotorId motor) {
   if (stepPin != 255) {
     digitalWrite(stepPin, LOW);
   }
-}
-
-bool StepperController::isLeadTopSwitchTripped() const {
-  return Config::TOP_BARREL_SWITCH_PIN != Config::UNUSED_PIN &&
-    digitalRead(Config::TOP_BARREL_SWITCH_PIN) == LOW;
-}
-
-bool StepperController::isLeadBottomSwitchTripped() const {
-  return Config::BOTTOM_LIMIT_SWITCH_PIN != Config::UNUSED_PIN &&
-    digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
 }
 
 StepperController::LeadLimit StepperController::takeLeadLimitEvent() {
@@ -245,11 +236,11 @@ long StepperController::moveSteps(
       return LeadLimit::None;
     }
 
-    if (movingPositive && isLeadTopSwitchTripped()) {
+    if (movingPositive && sensors.isLeadTopSwitchTripped()) {
       return LeadLimit::Top;
     }
 
-    if (!movingPositive && isLeadBottomSwitchTripped()) {
+    if (!movingPositive && sensors.isLeadBottomSwitchTripped()) {
       return LeadLimit::Bottom;
     }
 
