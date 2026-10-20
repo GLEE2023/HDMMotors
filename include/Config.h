@@ -43,7 +43,7 @@ namespace Config {
 
   // Limit-switch pins
   constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = UNUSED_PIN;
-  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = A3;
+  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = UNUSED_PIN;
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
@@ -70,7 +70,7 @@ namespace Config {
   constexpr float PUCK_HEIGHT_MM = 14.0f;
   constexpr float BARREL_HEIGHT_MM = 256.0f;
   constexpr uint8_t PUCK_COUNT = 17;
-  constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 11.0f;
+  constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 13.0f;
   constexpr float FULL_DEPLOYMENT_STAGING_MM = 5.0f;
   constexpr float FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM = 2.0f;
   constexpr float FULL_DEPLOYMENT_POST_FIRE_LOWER_MM = 3.0f;
