@@ -43,7 +43,7 @@ namespace Config {
 
   // Limit-switch pins
   constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = UNUSED_PIN;
-  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = UNUSED_PIN;
+  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = A3;
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
