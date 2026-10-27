@@ -31,6 +31,20 @@ The repository is split into a small set of source and header files:
 - [src/ServoController.cpp](src/ServoController.cpp): servo reset/arm/fire behavior
 - [src/Sensors.cpp](src/Sensors.cpp): limit/puck switches, burnwire output, and barrel solenoid (all optional pins)
 - [include/Config.h](include/Config.h): hardware pins, motion profiles, servo angles, and mechanical constants
+- [test/test_firmware/](test/test_firmware): host-side unit tests with fake Arduino hardware (see below)
+
+## Running Unit Tests
+
+The tests compile the real firmware sources on your PC (no board needed) against fake Arduino, Servo, SPI and TMCStepper headers that record every pin write, delay and servo move. They check the behavior listed in `.github/agents/PROTOTYPE_CONSIDERATIONS.md`.
+
+Requires a host C/C++ compiler on `PATH` (gcc/g++, or clang via MinGW/MSYS2):
+
+```
+pio test -e native             # optional pins left UNUSED_PIN, as on the bench
+pio test -e native_configured  # test-only pins for switches, solenoid, burnwire and enables
+```
+
+The two environments cover both wiring states. The `HDM_OPTIONAL_PIN(benchPin, testPin)` macro in [Config.h](include/Config.h) picks `benchPin` on hardware; to wire a real pin, edit its first argument. The AVR build is unaffected (`pio run`).
 
 ## Quick Start
 

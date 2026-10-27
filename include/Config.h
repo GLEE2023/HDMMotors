@@ -14,26 +14,38 @@ namespace Config {
 
   constexpr uint8_t UNUSED_PIN = 255;
 
+  // Optional pins are written HDM_OPTIONAL_PIN(benchPin, testPin). On hardware
+  // this is just benchPin: edit the first argument to wire a pin. Host unit
+  // tests (HDM_UNIT_TEST) ignore the bench wiring: every optional pin is
+  // UNUSED_PIN, or testPin when HDM_TEST_PINS_CONFIGURED is also defined.
+#if defined(HDM_UNIT_TEST) && defined(HDM_TEST_PINS_CONFIGURED)
+  #define HDM_OPTIONAL_PIN(benchPin, testPin) (testPin)
+#elif defined(HDM_UNIT_TEST)
+  #define HDM_OPTIONAL_PIN(benchPin, testPin) (UNUSED_PIN)
+#else
+  #define HDM_OPTIONAL_PIN(benchPin, testPin) (benchPin)
+#endif
+
   // Lead-screw TMC5160 pins
   constexpr uint8_t LEAD_STEP_PIN = 6;
   constexpr uint8_t LEAD_DIRECTION_PIN = 7;
-  constexpr uint8_t LEAD_ENABLE_PIN = UNUSED_PIN;
+  constexpr uint8_t LEAD_ENABLE_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 20);
   constexpr uint8_t LEAD_CHIP_SELECT_PIN = 10;
 
   // Standalone TMC2209 STEP/DIR pins
   constexpr uint8_t BARREL_STEP_PIN = 4;
   constexpr uint8_t BARREL_DIRECTION_PIN = 5;
-  constexpr uint8_t BARREL_ENABLE_PIN = UNUSED_PIN;
+  constexpr uint8_t BARREL_ENABLE_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 21);
 
   constexpr uint8_t YAW_STEP_PIN = 2;
   constexpr uint8_t YAW_DIRECTION_PIN = 3;
-  constexpr uint8_t YAW_ENABLE_PIN = UNUSED_PIN;
+  constexpr uint8_t YAW_ENABLE_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 22);
 
   // Burnwire trigger output
-  constexpr uint8_t BURNWIRE_TRIGGER_PIN = UNUSED_PIN;
+  constexpr uint8_t BURNWIRE_TRIGGER_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 23);
 
   // Solenoid that unlocks the barrel from the yaw while the barrel rotates
-  constexpr uint8_t BARREL_SOLENOID_PIN = UNUSED_PIN;
+  constexpr uint8_t BARREL_SOLENOID_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 24);
   constexpr uint8_t BARREL_SOLENOID_ACTIVE_LEVEL = HIGH;
   constexpr uint16_t BARREL_SOLENOID_SETTLE_TIME_MS = 50;
 
@@ -42,8 +54,8 @@ namespace Config {
   constexpr uint8_t RIGHT_SERVO_PIN = A2;
 
   // Limit-switch pins
-  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = UNUSED_PIN;
-  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = UNUSED_PIN;
+  constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 25);
+  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = HDM_OPTIONAL_PIN(UNUSED_PIN, 26);
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
