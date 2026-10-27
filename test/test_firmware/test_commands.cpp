@@ -115,16 +115,20 @@ void test_lowercase_letters_work_for_case_insensitive_commands(void) {
   t::clearOut();
 
   t::run("x");
-  TEST_ASSERT_TRUE(
-    t::has("step pulses stopped") || t::has("All stepper drivers disabled.")
-  );
+#ifdef HDM_TEST_PINS_CONFIGURED
+  ASSERT_OUT_HAS("All stepper drivers disabled.");
+#else
+  ASSERT_OUT_HAS("holding torque may remain on");
+#endif
 }
 
 void test_lowercase_h_t_u_m_work(void) {
   t::run("h");
-  TEST_ASSERT_TRUE(
-    t::has("Bottom limit switch") || t::has("Running lead screw down")
-  );
+#ifdef HDM_TEST_PINS_CONFIGURED
+  ASSERT_OUT_HAS("Running lead screw down for the full configured travel...");
+#else
+  ASSERT_OUT_HAS("Bottom limit switch is not configured; using the software bottom reference.");
+#endif
   t::clearOut();
 
   t::run("t");

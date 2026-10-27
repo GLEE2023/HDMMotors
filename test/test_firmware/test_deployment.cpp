@@ -10,6 +10,11 @@ long fireCount() {
   return hw::servoWrites(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_FIRE);
 }
 
+void expectServosAtRest() {
+  EQ(Config::LEFT_SERVO_REST, hw::lastServoAngle(Config::LEFT_SERVO_PIN));
+  EQ(Config::RIGHT_SERVO_REST, hw::lastServoAngle(Config::RIGHT_SERVO_PIN));
+}
+
 // --- confirmation prompt ---------------------------------------------------------
 
 void test_enter_fires(void) {
@@ -90,6 +95,45 @@ void test_g_stop_during_the_first_raise_aborts(void) {
   t::run("G");
   ASSERT_OUT_HAS("Unable to raise to the first puck level; full deployment stopped.");
   EQ(0, fireCount());
+  EQ(0, hw::servoWrites(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_ARM));
+}
+
+void test_g_stop_while_raising_the_puck_aborts(void) {
+  t::typeAfterPulses(Config::LEAD_STEP_PIN, t::kLevelOneSteps + 100, "x");
+  t::run("G");
+  ASSERT_OUT_HAS("Unable to raise the puck to firing height; full deployment stopped.");
+  EQ(0, fireCount());
+  EQ(0, hw::servoWrites(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_ARM));
+}
+
+void test_g_stop_during_the_pre_fire_lower_aborts(void) {
+  t::typeAfterPulses(
+    Config::LEAD_STEP_PIN, t::kLevelOneSteps + t::kPuckHeightSteps + 100, "x"
+  );
+  t::run("G");
+  ASSERT_OUT_HAS("Unable to position the puck for firing; full deployment stopped.");
+  EQ(0, fireCount());
+  expectServosAtRest();
+}
+
+void test_g_stop_during_the_post_fire_raise_aborts_after_firing(void) {
+  Serial.feed("\n");
+  t::typeAfterPulses(
+    Config::LEAD_STEP_PIN,
+    t::kLevelOneSteps + t::kPuckHeightSteps + t::kThreeMmSteps + 100,
+    "x"
+  );
+  t::run("G");
+  ASSERT_OUT_HAS("Unable to finish the puck cycle; full deployment stopped.");
+  EQ(1, fireCount());
+  expectServosAtRest();
+}
+
+void test_g_cancel_resets_the_servos(void) {
+  Serial.feed("n\n");
+  t::run("G");
+  TEST_ASSERT_TRUE(hw::servoWrites(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_ARM) > 0);
+  expectServosAtRest();
 }
 
 #else
@@ -118,6 +162,26 @@ void test_g_fires_only_when_the_puck_switch_trips_briefly(void) {
   EQ(1, fireCount());
 }
 
+void test_g_homes_with_the_bottom_switch_before_the_first_puck(void) {
+  // The elevator starts physically 3000 steps up while the software says 0.
+  t::simulateLeadScrew(3000, [](long) { return true; });
+  Serial.feed(std::string(17, '\n'));
+  t::run("G");
+  EQ(17, fireCount());
+  EQ(-3000, t::leadNet());
+  const long firstUp = hw::firstWrite(Config::LEAD_DIRECTION_PIN, HIGH);
+  TEST_ASSERT_TRUE(firstUp > hw::firstWrite(Config::LEAD_STEP_PIN, HIGH));
+}
+
+void test_g_cancel_with_a_switch_returns_to_the_physical_bottom(void) {
+  t::simulateLeadScrew(0, [](long) { return true; });
+  Serial.feed("n\n");
+  t::run("G");
+  ASSERT_OUT_HAS("Deployment cancelled.");
+  EQ(0, t::leadNet());
+  expectServosAtRest();
+}
+
 #endif
 
 }  // namespace
@@ -133,9 +197,15 @@ void run_deployment_tests() {
   RUN_TEST(test_g_cancel_returns_the_elevator_to_the_bottom);
   RUN_TEST(test_g_can_cancel_after_some_pucks);
   RUN_TEST(test_g_stop_during_the_first_raise_aborts);
+  RUN_TEST(test_g_stop_while_raising_the_puck_aborts);
+  RUN_TEST(test_g_stop_during_the_pre_fire_lower_aborts);
+  RUN_TEST(test_g_stop_during_the_post_fire_raise_aborts_after_firing);
+  RUN_TEST(test_g_cancel_resets_the_servos);
 #else
   RUN_TEST(test_g_fires_every_puck_when_all_are_present);
   RUN_TEST(test_g_skips_levels_with_no_puck);
   RUN_TEST(test_g_fires_only_when_the_puck_switch_trips_briefly);
+  RUN_TEST(test_g_homes_with_the_bottom_switch_before_the_first_puck);
+  RUN_TEST(test_g_cancel_with_a_switch_returns_to_the_physical_bottom);
 #endif
 }
