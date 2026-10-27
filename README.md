@@ -37,7 +37,7 @@ The repository is split into a small set of source and header files:
 
 The tests compile the real firmware sources on your PC (no board needed) against fake Arduino, Servo, SPI and TMCStepper headers that record every pin write, delay and servo move. They check the behavior listed in `.github/agents/PROTOTYPE_CONSIDERATIONS.md`.
 
-Requires a host C/C++ compiler on `PATH` (gcc/g++, or clang via MinGW/MSYS2):
+Requires a host C/C++ compiler on `PATH` (gcc/g++, or clang via MinGW/MSYS2). On Windows: `winget install BrechtSanders.WinLibs.POSIX.UCRT`, then reopen the terminal:
 
 ```
 pio test -e native             # optional pins left UNUSED_PIN, as on the bench
