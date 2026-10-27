@@ -8,7 +8,7 @@
 // solenoid that locks the barrel to the yaw mechanism.
 class Sensors {
 public:
-  // Configures every switch input and output pin; outputs start off.
+  // Sets up the pins that are configured; burnwire low, solenoid locked.
   void begin();
 
   // Active-low switch reads; always false when the pin is UNUSED_PIN.
@@ -21,26 +21,24 @@ public:
   bool isPuckLatched() const;
   void clearPuckLatch();
 
-  // Both lead top and bottom use active-low switches; the puck switch is optional.
+  // Whether the optional hardware pins are configured (not UNUSED_PIN).
+  // The puck switch shares the TOP_LIMIT_SWITCH_PIN.
   bool hasPuckSwitch() const;
-  // True when a puck is at the firing position (assumed present without a switch).
-  bool isPuckInBarrel() const;
-  // True when the elevator reaches the lower limit.
-  bool isElevatorAtBottom() const;
+  bool hasBottomSwitch() const;
+  bool hasBarrelSolenoid() const;
+  bool hasBurnwireTrigger() const;
 
-  // Pulses the burnwire trigger for the given duration (blocking).
+  // Blocks for durationMs with the burnwire pin high; no-op if unconfigured.
   void fireBurnwire(unsigned long durationMs);
 
-  // Energizes the solenoid so the barrel is free to rotate relative to the yaw.
+  // Solenoid drive; both are no-ops if unconfigured.
   void unlockBarrel();
-  // De-energizes the solenoid so the barrel is locked to the yaw again.
   void lockBarrel();
-  bool isBarrelUnlocked() const;
-
   // Prints switch and solenoid states.
   void printStatus(Stream &output) const;
 
 private:
+  // Commanded solenoid state (there is no feedback), used for settle delays and status.
   bool barrelUnlocked = false;
   bool puckLatched = false;
 };

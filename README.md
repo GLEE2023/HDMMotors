@@ -11,15 +11,15 @@ The firmware is organized around four main behaviors:
 
 ## What the Project is For
 
-This firmware is meant to drive a mechanical puck launcher with a single-button fire workflow, but it also supports manual control over serial. In practice, the system can:
+This firmware drives the mechanism through a serial command interface. In practice, the system can:
 
-- detect whether a puck is present at the firing position
+- detect puck presence when the switch is configured, or assume a puck is present without one
 - fire one puck at a time
 - run the complete staged deployment sequence for all configured pucks
 - advance the lead screw for the next puck level
-- rotate the barrel to the next chamber
+- rotate the barrel to the next chamber when the barrel solenoid is configured
 - return the elevator to the bottom reference position
-- report the current state of the motors and servos
+- report the tracked axis positions, configured switch states, and servo angles
 
 ## Project Layout
 
@@ -29,6 +29,7 @@ The repository is split into a small set of source and header files:
 - [src/Axes.cpp](src/Axes.cpp): control logic for lead screw, barrel, and yaw movement
 - [src/StepperController.cpp](src/StepperController.cpp): low-level motion driver setup for the lead-screw TMC5160 and standalone barrel/yaw STEP/DIR control
 - [src/ServoController.cpp](src/ServoController.cpp): servo reset/arm/fire behavior
+- [src/Sensors.cpp](src/Sensors.cpp): limit/puck switches, burnwire output, and barrel solenoid (all optional pins)
 - [include/Config.h](include/Config.h): hardware pins, motion profiles, servo angles, and mechanical constants
 
 ## Quick Start
@@ -114,7 +115,7 @@ This project uses one TMC5160 stepper driver for the lead screw and two standalo
 
 The servos should be powered from a suitable external 5 V supply, not from the Nano regulator. The servo ground and the Nano/driver ground should be connected together.
 
-The driver enable pins, burnwire trigger, bottom limit switch, and top barrel/puck switch are currently set to `UNUSED_PIN` (`255`) in the firmware. Connect and configure those signals before relying on switch-based puck detection, bottom homing, motor-enable control, or burnwire output.
+The driver enable pins, burnwire trigger, bottom limit switch, puck-detection switch, and barrel solenoid are currently set to `UNUSED_PIN` (`255`) in the firmware. `H` returns to the configured bottom, using the bottom switch when present and otherwise the software-tracked position. `B` ignores that reference and drives down for up to the full configured travel, stopping early if the bottom switch trips. Without driver enable pins, stopping step pulses does not remove holding torque. Barrel indexing proceeds without the solenoid but warns that the barrel was not unlocked. The full deployment warns that puck presence cannot be verified without its switch. Configure relevant pins before relying on switch-based homing, puck detection, driver disabling, barrel release, or burnwire output.
 
 ## Important Configuration Values
 
@@ -125,9 +126,9 @@ The active values from [include/Config.h](include/Config.h) are listed below.
 | Setting | Current value |
 |---|---:|
 | Puck-level spacing | 14 mm |
-| Configured travel height | 250 mm |
-| Puck levels | 18 |
-| First-level offset from bottom | 10 mm |
+| Configured travel height | 256 mm |
+| Puck levels | 17 |
+| First-level offset from bottom | 13 mm |
 | Calibration | 100.8 steps/mm |
 | Driver current | 1400 mA |
 | Microsteps | 4 |
@@ -137,14 +138,13 @@ The active values from [include/Config.h](include/Config.h) are listed below.
 
 | Setting | Barrel | Yaw |
 |---|---:|---:|
-| Driver current | 600 mA | 600 mA |
 | Microsteps | 8 | 8 |
 | Motor full steps/revolution | 200 | 200 |
 | Gear ratio | 111:20 (5.55:1) | 111:20 (5.55:1) |
 | Indexes / angle limits | 6 indexes | -30 to +30 degrees |
 | Motion profile (start / cruise / acceleration) | 1800 / 700 us / 100 steps | 2400 / 1200 us / 160 steps |
 
-Yaw is configured to hold its position after a move. The lead-screw calibration is especially important and should be adjusted if physical travel does not match commanded travel.
+Yaw is configured to hold its position after a move. The barrel and yaw drivers are standalone STEP/DIR drivers, so their current is set in hardware, not by this firmware. The lead-screw calibration is especially important and should be adjusted if physical travel does not match commanded travel.
 
 ### Servos and Timing
 
@@ -162,12 +162,13 @@ A few behaviors are worth knowing before using the machine:
 
 - The elevator is tracked in terms of puck levels and also in physical step position.
 - The barrel is treated as a circular indexer, so movement is optimized to take the shortest route to the requested chamber.
-- The yaw axis is limited to a mechanical range and is clamped to that range when commands are issued.
+- The yaw axis is limited to a mechanical range; out-of-range `Y`/`R` requests are clamped to that range and the clamp is reported.
+- Typing `x` while a stepper move is running stops that move and the tracked position follows the steps actually taken. The lead puck level becomes unknown until `H` or `B` re-establishes it, except that stopping `B` with `x` sets the stop point as the new bottom (position 0).
 - The barrel and yaw motors are driven as standalone TMC2209 STEP/DIR motors without UART, so their motion is controlled by step timing rather than driver configuration registers.
 - The servo motion is smooth by default, and the fire action briefly holds the fire position before returning to rest.
 - The firmware assumes the system is already roughly homed at startup: the lead screw starts at the bottom, the barrel at index 0, and yaw at 0 degrees.
 
-The full deployment command raises each puck level, stages the lead screw, arms and fires both servos, then repeats until `PUCK_COUNT` pucks have been deployed. Its staging lift is capped at the configured `BARREL_HEIGHT_MM`; with the current values, the final puck receives a 2 mm staging lift instead of 5 mm. After the final cycle, the elevator returns to the software-tracked bottom reference.
+The full deployment command starts from the bottom and raises to puck level 1, then for each puck raises one puck height (`PUCK_HEIGHT_MM`) into the deployment position, arms both servos, lowers 3 mm, waits for Enter, fires, then raises 3 mm to realign. The next puck's raise starts from that realigned position, repeating until `PUCK_COUNT` pucks have been deployed (the last puck is fired at 251 mm of the 256 mm travel). After the final cycle, the elevator returns to the bottom using the limit switch when configured, or the software-tracked reference otherwise.
 
 ## Serial Command Reference
 
@@ -177,13 +178,13 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 
 | Command | Purpose |
 |---|---|
-| `F` or `f` | Run one full puck deployment cycle if a puck is present |
 | `G` or `g` | Run the staged deployment sequence for every configured puck, then return the elevator to the bottom reference |
-| `H` or `h` | Home the lead screw to the bottom position |
+| `H` or `h` | Return to the configured bottom (switch if configured, otherwise software reference) |
+| `B` | Drive down for the full configured travel, stopping early if the bottom switch trips. Typing `x` stops it and sets that point as position 0 |
 | `?` | Print the available commands |
 | `C` | Print the current status of the axes and servos |
 | `T` or `t` | Run the TMC5160 SPI connection test over the serial monitor |
-| `X` | Disable all stepper drivers |
+| `X` | Stop step pulses and disable drivers with configured enable pins (between moves; during a move, type `x` to stop it) |
 | `U` or `u` | Pulse the burnwire output for 12 seconds |
 
 ### Servo Commands
@@ -192,22 +193,16 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 |---|---|
 | `w` | Reset servos to the rest position |
 | `e` | Move servos to the armed position |
-| `p` | Fire the right servo once and return to rest |
-| `l` | Fire the left servo once and return to rest |
 | `m` or `M` | Fire both servos and return them to rest |
 
 ### Lead-Screw Commands
 
 | Command | Purpose |
 |---|---|
-| `W` | Raise the elevator by one puck level |
+| `W` | Raise the elevator by one puck level (the first level includes the extra first-puck offset) |
 | `S` | Lower the elevator by one puck level |
 | `+` | Move the lead screw up by 1 mm for alignment checks |
 | `-` | Move the lead screw down by 1 mm for alignment checks |
-| `A` | Move the lead screw to the full top position |
-| `D` | Move the lead screw back to the bottom reference |
-| `B` | Run the lead screw down, ignoring the remembered position |
-| `L` | Treat the current physical position as the new bottom reference |
 
 ### Barrel Commands
 
@@ -216,7 +211,6 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 | `N` | Move the barrel to the next chamber index |
 | `P` | Move the barrel to the previous chamber index |
 | `I5` | Move the barrel directly to chamber index 5 |
-| `O` | Set the current barrel position as index 0 |
 
 ### Yaw Commands
 
@@ -228,4 +222,4 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 
 ## Notes for New Users
 
-The firmware does not currently use encoders. The bottom and top barrel/puck switches are also unassigned in the current configuration, so switch-based homing and puck detection are not ready to use. If the mechanism is moved by hand, stalls, skips steps, or is changed while a motor is disabled, the software position can become inaccurate. In that case, the physical position should be re-established with the appropriate `L`, `O`, or `Z` command.
+The firmware does not currently use encoders. The bottom and puck-detection switches are unassigned in the current configuration, so physical homing and switch-based puck detection are not available. If the mechanism is moved by hand, stalls, skips steps, or is changed while a motor is disabled, the software position can become inaccurate. Re-establish the physical position before relying on automatic motion; `Z` only resets the yaw reference.

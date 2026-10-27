@@ -23,12 +23,6 @@ public:
   // Fires both servos and returns them to rest.
   void fire();
 
-  // Fires only the left servo and returns it to rest.
-  void fireLeft();
-
-  // Fires only the right servo and returns it to rest.
-  void fireRight();
-
   // Prints the current commanded servo angles.
   void printStatus(Stream &output) const;
 

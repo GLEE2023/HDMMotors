@@ -5,6 +5,9 @@ StepperController::StepperController(Sensors &sensorsRef)
     sensors(sensorsRef)
 {}
 
+// Sets up STEP/DIR outputs (all low) and optional enable pins (driven high =
+// disabled), then starts SPI and configures the lead TMC5160 only. Barrel and
+// yaw drivers are plain STEP/DIR; nothing is configured on them.
 void StepperController::begin() {
   // Lead screw pins
   pinMode(Config::LEAD_STEP_PIN, OUTPUT);
@@ -17,6 +20,21 @@ void StepperController::begin() {
   // Yaw standalone TMC2209 STEP/DIR pins
   pinMode(Config::YAW_STEP_PIN, OUTPUT);
   pinMode(Config::YAW_DIRECTION_PIN, OUTPUT);
+
+  if (Config::LEAD_ENABLE_PIN != Config::UNUSED_PIN) {
+    pinMode(Config::LEAD_ENABLE_PIN, OUTPUT);
+    digitalWrite(Config::LEAD_ENABLE_PIN, HIGH);
+  }
+
+  if (Config::BARREL_ENABLE_PIN != Config::UNUSED_PIN) {
+    pinMode(Config::BARREL_ENABLE_PIN, OUTPUT);
+    digitalWrite(Config::BARREL_ENABLE_PIN, HIGH);
+  }
+
+  if (Config::YAW_ENABLE_PIN != Config::UNUSED_PIN) {
+    pinMode(Config::YAW_ENABLE_PIN, OUTPUT);
+    digitalWrite(Config::YAW_ENABLE_PIN, HIGH);
+  }
 
   // Initial STEP and DIR states
   digitalWrite(Config::LEAD_STEP_PIN, LOW);
@@ -36,6 +54,8 @@ void StepperController::begin() {
   configureLeadDriver();
 }
 
+// Lead TMC5160 over SPI: SpreadCycle, configured current and microsteps.
+// No return value or error check on the SPI writes.
 void StepperController::configureLeadDriver() {
   leadDriver.begin();
   leadDriver.toff(5);
@@ -46,12 +66,16 @@ void StepperController::configureLeadDriver() {
   leadDriver.en_pwm_mode(false);
 }
 
-void StepperController::disableAllMotors() {
-  digitalWrite(Config::LEAD_STEP_PIN, LOW);
-  digitalWrite(Config::BARREL_STEP_PIN, LOW);
-  digitalWrite(Config::YAW_STEP_PIN, LOW);
+// Calls disableMotor on all three motors; true only if every one had an enable pin.
+bool StepperController::disableAllMotors() {
+  const bool leadDisabled = disableMotor(Config::MotorId::LeadScrew);
+  const bool barrelDisabled = disableMotor(Config::MotorId::Barrel);
+  const bool yawDisabled = disableMotor(Config::MotorId::Yaw);
+
+  return leadDisabled && barrelDisabled && yawDisabled;
 }
 
+// Pin lookups; UNUSED_PIN is returned for MotorId::None.
 uint8_t StepperController::getStepPin(Config::MotorId motor) const {
   switch (motor) {
     case Config::MotorId::LeadScrew:
@@ -65,7 +89,7 @@ uint8_t StepperController::getStepPin(Config::MotorId motor) const {
 
     case Config::MotorId::None:
     default:
-      return 255;
+      return Config::UNUSED_PIN;
   }
 }
 
@@ -82,28 +106,69 @@ uint8_t StepperController::getDirectionPin(Config::MotorId motor) const {
 
     case Config::MotorId::None:
     default:
-      return 255;
+      return Config::UNUSED_PIN;
   }
 }
 
-void StepperController::disableMotor(Config::MotorId motor) {
-  uint8_t stepPin = getStepPin(motor);
+// Returns UNUSED_PIN when the motor's enable pin is not configured.
+uint8_t StepperController::getEnablePin(Config::MotorId motor) const {
+  switch (motor) {
+    case Config::MotorId::LeadScrew:
+      return Config::LEAD_ENABLE_PIN;
 
-  if (stepPin != 255) {
-    digitalWrite(stepPin, LOW);
+    case Config::MotorId::Barrel:
+      return Config::BARREL_ENABLE_PIN;
+
+    case Config::MotorId::Yaw:
+      return Config::YAW_ENABLE_PIN;
+
+    case Config::MotorId::None:
+    default:
+      return Config::UNUSED_PIN;
   }
 }
 
+// Always sets STEP low. Drives the enable pin high (disabled, active-low enable)
+// only if configured. Returns false if there is no enable pin (torque unchanged).
+bool StepperController::disableMotor(Config::MotorId motor) {
+  const uint8_t stepPin = getStepPin(motor);
+
+  if (stepPin == Config::UNUSED_PIN) {
+    return false;
+  }
+
+  digitalWrite(stepPin, LOW);
+
+  const uint8_t enablePin = getEnablePin(motor);
+  if (enablePin == Config::UNUSED_PIN) {
+    return false;
+  }
+
+  digitalWrite(enablePin, HIGH);
+  return true;
+}
+
+// Returns the limit event from the last lead move and clears it.
 StepperController::LeadLimit StepperController::takeLeadLimitEvent() {
   LeadLimit event = leadLimitEvent;
   leadLimitEvent = LeadLimit::None;
   return event;
 }
 
+// Drives the enable pin low (enabled) and waits ENABLE_SETTLE_TIME_MS; does
+// nothing if no enable pin is configured.
 void StepperController::enableMotor(Config::MotorId motor) {
-  (void)motor;
+  const uint8_t enablePin = getEnablePin(motor);
+
+  if (enablePin != Config::UNUSED_PIN) {
+    digitalWrite(enablePin, LOW);
+    delay(Config::ENABLE_SETTLE_TIME_MS);
+  }
 }
 
+// Delay (us) after step stepNumber. Fixed cruise delay if the profile has no
+// ramp or start <= cruise; otherwise a linear ramp from start to cruise over
+// min(accelerationSteps, totalSteps/2) steps at both the start and the end.
 uint16_t StepperController::calculatePulseDelay(
   unsigned long stepNumber,
   unsigned long totalSteps,
@@ -160,6 +225,8 @@ uint16_t StepperController::calculatePulseDelay(
   );
 }
 
+// True if the next serial byte is x/X; that byte plus following CR/LF is
+// consumed. Any other pending byte is left in the buffer (not consumed).
 bool StepperController::emergencyStopRequested() {
   if (Serial.available() <= 0) {
     return false;
@@ -193,6 +260,11 @@ bool StepperController::emergencyStopRequested() {
   return true;
 }
 
+// Blocking move of one motor by signedSteps. Returns signed steps actually done
+// (0 if invalid, or a lead down-move starts with the bottom switch tripped).
+// Checks for x/X every 16 steps. Lead only: latches the puck switch each step
+// and stops on the bottom switch (sets leadLimitEvent). Lead is never disabled
+// afterwards; other motors are disabled unless keepEnabledAfterMove.
 long StepperController::moveSteps(
   Config::MotorId motor,
   long signedSteps,
@@ -210,7 +282,7 @@ long StepperController::moveSteps(
   uint8_t stepPin = getStepPin(motor);
   uint8_t directionPin = getDirectionPin(motor);
 
-  if (stepPin == 255 || directionPin == 255) {
+  if (stepPin == Config::UNUSED_PIN || directionPin == Config::UNUSED_PIN) {
     return 0;
   }
 
@@ -308,7 +380,9 @@ long StepperController::moveSteps(
     motor != Config::MotorId::LeadScrew &&
     !keepEnabledAfterMove
   ) {
-    disableMotor(motor);
+    if (!disableMotor(motor)) {
+      Serial.println(F("Motor enable pin is not configured; holding torque remains on."));
+    }
   }
 
   return movingPositive
@@ -316,6 +390,10 @@ long StepperController::moveSteps(
     : -(long)completedSteps;
 }
 
+// Barrel and yaw are stepped together on one shared pulse (both motors always
+// move; barrel's partner runs in the opposite direction, yaw's the same).
+// Enables both, no limit switches, x/X check every 16 steps, and returns signed
+// steps done. Any other motor is passed to moveSteps.
 long StepperController::moveCoordinatedSteps(
   Config::MotorId motor,
   long signedSteps,
@@ -323,59 +401,39 @@ long StepperController::moveCoordinatedSteps(
   const Config::MotionProfile &profile,
   bool keepEnabledAfterMove
 ) {
-  if (
-    motor == Config::MotorId::None ||
-    signedSteps == 0
-  ) {
+  if (signedSteps == 0) {
     return 0;
   }
 
-  bool movingPositive = signedSteps > 0;
-  bool directionLevel = movingPositive
+  if (motor != Config::MotorId::Barrel && motor != Config::MotorId::Yaw) {
+    return moveSteps(
+      motor,
+      signedSteps,
+      positiveDirectionLevel,
+      profile,
+      keepEnabledAfterMove
+    );
+  }
+
+  const bool movingPositive = signedSteps > 0;
+  const bool directionLevel = movingPositive
     ? positiveDirectionLevel
     : !positiveDirectionLevel;
 
-  uint8_t primaryStepPin = 255;
-  uint8_t primaryDirectionPin = 255;
-  uint8_t secondaryStepPin = 255;
-  uint8_t secondaryDirectionPin = 255;
-  bool secondaryDirectionLevel = directionLevel;
+  // The partner motor follows the commanded one; barrel moves drive the yaw
+  // motor in the opposite direction, yaw moves drive the barrel the same way.
+  const bool isBarrel = motor == Config::MotorId::Barrel;
+  const Config::MotorId partner = isBarrel
+    ? Config::MotorId::Yaw
+    : Config::MotorId::Barrel;
+  const bool secondaryDirectionLevel = isBarrel
+    ? !directionLevel
+    : directionLevel;
 
-  switch (motor) {
-    case Config::MotorId::Barrel:
-      primaryStepPin = getStepPin(Config::MotorId::Barrel);
-      primaryDirectionPin = getDirectionPin(Config::MotorId::Barrel);
-      secondaryStepPin = getStepPin(Config::MotorId::Yaw);
-      secondaryDirectionPin = getDirectionPin(Config::MotorId::Yaw);
-      secondaryDirectionLevel = !directionLevel;
-      break;
-
-    case Config::MotorId::Yaw:
-      primaryStepPin = getStepPin(Config::MotorId::Yaw);
-      primaryDirectionPin = getDirectionPin(Config::MotorId::Yaw);
-      secondaryStepPin = getStepPin(Config::MotorId::Barrel);
-      secondaryDirectionPin = getDirectionPin(Config::MotorId::Barrel);
-      secondaryDirectionLevel = directionLevel;
-      break;
-
-    default:
-      return moveSteps(
-        motor,
-        signedSteps,
-        positiveDirectionLevel,
-        profile,
-        keepEnabledAfterMove
-      );
-  }
-
-  if (
-    primaryStepPin == 255 ||
-    primaryDirectionPin == 255 ||
-    secondaryStepPin == 255 ||
-    secondaryDirectionPin == 255
-  ) {
-    return 0;
-  }
+  const uint8_t primaryStepPin = getStepPin(motor);
+  const uint8_t primaryDirectionPin = getDirectionPin(motor);
+  const uint8_t secondaryStepPin = getStepPin(partner);
+  const uint8_t secondaryDirectionPin = getDirectionPin(partner);
 
   unsigned long totalSteps = movingPositive
     ? (unsigned long)signedSteps
@@ -394,7 +452,8 @@ long StepperController::moveCoordinatedSteps(
 
   delay(Config::DIRECTION_SETUP_DELAY_MS);
 
-  enableMotor(motor);
+  enableMotor(Config::MotorId::Barrel);
+  enableMotor(Config::MotorId::Yaw);
 
   unsigned long completedSteps = 0;
 
@@ -430,8 +489,12 @@ long StepperController::moveCoordinatedSteps(
   digitalWrite(secondaryStepPin, LOW);
 
   if (!keepEnabledAfterMove) {
-    disableMotor(Config::MotorId::Barrel);
-    disableMotor(Config::MotorId::Yaw);
+    const bool barrelDisabled = disableMotor(Config::MotorId::Barrel);
+    const bool yawDisabled = disableMotor(Config::MotorId::Yaw);
+
+    if (!barrelDisabled || !yawDisabled) {
+      Serial.println(F("Barrel/yaw enable pins are not both configured; holding torque may remain on."));
+    }
   }
 
   return movingPositive
@@ -439,6 +502,8 @@ long StepperController::moveCoordinatedSteps(
     : -(long)completedSteps;
 }
 
+// Prints only the lead TMC5160 SPI result (0 normally means OK); barrel and yaw
+// cannot be tested.
 void StepperController::printConnectionTests(Stream &output) {
   output.println();
   output.println(F("Stepper-driver checks:"));

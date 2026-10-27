@@ -16,12 +16,12 @@ public:
 
   // Initializes pins, SPI, and the configured lead-screw driver.
   void begin();
-  // Stops generating pulses for every motor at once.
-  void disableAllMotors();
-  // Stops pulses for the selected motor while leaving the others alone.
-  void disableMotor(Config::MotorId motor);
+  // Stops every motor's pulses; returns false if an enable pin is unconfigured.
+  bool disableAllMotors();
+  // Stops a motor's pulses; also disables it only if an enable pin is configured (returns false otherwise).
+  bool disableMotor(Config::MotorId motor);
 
-  // Sends a signed step pulse train for one motor using the requested motion profile.
+  // Blocking single-motor move; returns signed steps done. See the .cpp for lead-only limit handling.
   long moveSteps(
     Config::MotorId motor,
     long signedSteps,
@@ -30,7 +30,7 @@ public:
     bool keepEnabledAfterMove = false
   );
 
-  // Drives the paired barrel/yaw motors in the mechanical relationship required by the hardware.
+  // Barrel and yaw step together on shared pulses (both always move); other motors use moveSteps.
   long moveCoordinatedSteps(
     Config::MotorId motor,
     long signedSteps,
@@ -39,7 +39,7 @@ public:
     bool keepEnabledAfterMove = false
   );
 
-  // Tests the SPI connection to the installed TMC5160 driver.
+  // Prints the lead TMC5160 SPI result; barrel/yaw are not tested.
   void printConnectionTests(Stream &output);
 
   // Which lead-screw limit switch stopped the most recent lead move.
@@ -59,13 +59,15 @@ private:
   // Applies the standard current and microstep settings for the lead-screw driver.
   void configureLeadDriver();
 
-  // Keeps the interface compatible with the existing motion architecture.
+  // Drives the enable pin low (if configured) and waits for it to settle.
   void enableMotor(Config::MotorId motor);
 
   // Maps a logical motor to the pin that toggles its step signal.
   uint8_t getStepPin(Config::MotorId motor) const;
   // Maps a logical motor to the pin that selects its movement direction.
   uint8_t getDirectionPin(Config::MotorId motor) const;
+  // Maps a logical motor to its optional active-low enable pin.
+  uint8_t getEnablePin(Config::MotorId motor) const;
 
   // Calculates the delay between step pulses so the move accelerates and decelerates smoothly.
   uint16_t calculatePulseDelay(

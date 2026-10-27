@@ -43,7 +43,7 @@ namespace Config {
 
   // Limit-switch pins
   constexpr uint8_t BOTTOM_LIMIT_SWITCH_PIN = UNUSED_PIN;
-  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = A3;
+  constexpr uint8_t TOP_LIMIT_SWITCH_PIN = UNUSED_PIN;
 
   // General step timing
   constexpr uint8_t STEP_HIGH_TIME_US = 5;
@@ -71,9 +71,8 @@ namespace Config {
   constexpr float BARREL_HEIGHT_MM = 256.0f;
   constexpr uint8_t PUCK_COUNT = 17;
   constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 13.0f;
-  constexpr float FULL_DEPLOYMENT_STAGING_MM = 5.0f;
-  constexpr float FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM = 2.0f;
-  constexpr float FULL_DEPLOYMENT_POST_FIRE_LOWER_MM = 3.0f;
+  constexpr float FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM = 3.0f;
+  constexpr float FULL_DEPLOYMENT_POST_FIRE_RAISE_MM = 3.0f;
 
   constexpr uint16_t LEAD_CURRENT_MA = 1400;
   constexpr uint16_t LEAD_MICROSTEPS = 4;
@@ -107,7 +106,6 @@ namespace Config {
   // BARREL CONFIGURATION
   // ==========================================================
 
-  constexpr uint16_t BARREL_CURRENT_MA = 600;
   constexpr uint16_t BARREL_MICROSTEPS = 8;
   constexpr long BARREL_MOTOR_FULL_STEPS_PER_REVOLUTION = 200L;
   constexpr uint8_t BARREL_POSITION_COUNT = 6;
@@ -124,7 +122,6 @@ namespace Config {
   // YAW CONFIGURATION
   // ==========================================================
 
-  constexpr uint16_t YAW_CURRENT_MA = 600;
   constexpr uint16_t YAW_MICROSTEPS = 8;
   constexpr long YAW_MOTOR_FULL_STEPS_PER_REVOLUTION = 200L;
   constexpr float YAW_GEAR_RATIO = 111.0f / 20.0f;

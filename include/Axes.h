@@ -12,30 +12,26 @@ public:
   // Creates the motion controller and stores references to the stepper driver and sensors.
   Axes(StepperController &stepperController, Sensors &sensorsRef);
 
-  // Lead-screw helpers for moving the elevator between puck levels.
+  // Lead-screw helpers. Moves update the tracked position/level in software.
+  // moveLeadToBottom is software-only; moveLeadToBottomFullDown (B) ignores the tracked position.
   bool moveLeadUpOnePuck();
   bool moveLeadDownOnePuck();
   void moveLeadUpOneMillimeter();
   void moveLeadDownOneMillimeter();
   bool moveLeadRelativeMillimeters(float millimeters);
-  void moveLeadToTop();
   void moveLeadToBottom();
   void moveLeadToBottomFullDown();
-  void setLeadPositionAsBottom();
   bool moveLeadToPuckLevel(uint8_t targetPuckLevel);
   float getLeadPositionMillimeters() const;
 
-  // Barrel helpers for rotating the chamber to the next or previous firing position.
+  // Barrel helpers. Indices wrap; indexing runs with or without a solenoid.
   void moveBarrelToNextIndex();
   void moveBarrelToPreviousIndex();
   void moveBarrelToIndex(int targetIndex);
-  void setBarrelPositionAsIndexZero();
 
-  // Yaw helpers for aiming the firing angle within the configured mechanical limits.
+  // Yaw helpers; angles are clamped to the configured yaw limits.
   void moveYawToDegrees(float targetDegrees);
   void moveYawRelativeDegrees(float movementDegrees);
-  void moveYawByMicrosteps(long microsteps);
-  void releaseYawMotor();
   void setYawPositionAsZero();
 
   // Reports the current axis state to a serial stream.
