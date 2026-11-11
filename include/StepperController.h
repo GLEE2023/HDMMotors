@@ -12,10 +12,20 @@
 // standalone TMC2209 STEP/DIR drivers without UART.
 class StepperController {
 public:
+  // Which lead-screw limit switch stopped the most recent lead move.
+  enum class LeadLimit : uint8_t {
+    None,
+    Bottom
+  };
+
   StepperController(Sensors &sensorsRef);
 
   // Initializes pins, SPI, and the configured lead-screw driver.
   void begin();
+
+  // Returns the limit that halted the last lead move and clears it.
+  LeadLimit takeLeadLimitEvent();
+
   // Stops every motor's pulses; returns false if an enable pin is unconfigured.
   bool disableAllMotors();
   // Stops a motor's pulses; also disables it only if an enable pin is configured (returns false otherwise).
@@ -42,25 +52,10 @@ public:
   // Prints the lead TMC5160 SPI result; barrel/yaw are not tested.
   void printConnectionTests(Stream &output);
 
-  // Which lead-screw limit switch stopped the most recent lead move.
-  enum class LeadLimit : uint8_t {
-    None,
-    Bottom
-  };
-
-  // Returns the limit that halted the last lead move and clears it.
-  LeadLimit takeLeadLimitEvent();
-
 private:
   TMC5160Stepper leadDriver;
   Sensors &sensors;
   LeadLimit leadLimitEvent = LeadLimit::None;
-
-  // Applies the standard current and microstep settings for the lead-screw driver.
-  void configureLeadDriver();
-
-  // Drives the enable pin low (if configured) and waits for it to settle.
-  void enableMotor(Config::MotorId motor);
 
   // Maps a logical motor to the pin that toggles its step signal.
   uint8_t getStepPin(Config::MotorId motor) const;
@@ -68,6 +63,12 @@ private:
   uint8_t getDirectionPin(Config::MotorId motor) const;
   // Maps a logical motor to its optional active-low enable pin.
   uint8_t getEnablePin(Config::MotorId motor) const;
+
+  // Applies the standard current and microstep settings for the lead-screw driver.
+  void configureLeadDriver();
+
+  // Drives the enable pin low (if configured) and waits for it to settle.
+  void enableMotor(Config::MotorId motor);
 
   // Calculates the delay between step pulses so the move accelerates and decelerates smoothly.
   uint16_t calculatePulseDelay(

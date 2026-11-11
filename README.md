@@ -184,6 +184,10 @@ A few behaviors are worth knowing before using the machine:
 
 The full deployment command starts from the bottom and raises to puck level 1, then for each puck raises one puck height (`PUCK_HEIGHT_MM`) into the deployment position, arms both servos, lowers 3 mm, waits for Enter, fires, then raises 3 mm to realign. The next puck's raise starts from that realigned position, repeating until `PUCK_COUNT` pucks have been deployed (the last puck is fired at 251 mm of the 256 mm travel). After the final cycle, the elevator returns to the bottom using the limit switch when configured, or the software-tracked reference otherwise.
 
+`Q` first returns the elevator to the bottom and runs the same deployment as `G` on the currently aligned barrel. It then advances and deploys each remaining barrel, stopping after the sixth without indexing again. Starting at index 0, the order is 0 through 5. A cancelled or interrupted deployment, failed barrel movement, or interrupted return to bottom stops the entire sequence.
+
+At each `G` or `Q` firing prompt, Enter fires and `N` cancels. A bare `Y` also confirms for compatibility. Instead, send `Y12.5`, `R0.25`, or `Z` to adjust or zero yaw; the prompt returns without firing. Invalid yaw input and overlong lines are rejected without firing. Other non-yaw input cancels. Yaw and barrel motors move together as described above; during a stepper move, `x` stops that move.
+
 ## Serial Command Reference
 
 The firmware listens for commands over the serial port at 115200 baud. Commands are processed when a newline is received.
@@ -192,6 +196,7 @@ The firmware listens for commands over the serial port at 115200 baud. Commands 
 
 | Command | Purpose |
 |---|---|
+| `Q` or `q` | Deploy the aligned barrel, then advance and deploy each remaining barrel |
 | `G` or `g` | Run the staged deployment sequence for every configured puck, then return the elevator to the bottom reference |
 | `H` or `h` | Return to the configured bottom (switch if configured, otherwise software reference) |
 | `B` | Drive down for the full configured travel, stopping early if the bottom switch trips. Typing `x` stops it and sets that point as position 0 |

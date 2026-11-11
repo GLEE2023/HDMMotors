@@ -28,9 +28,10 @@ void loop();
 void processCommand(const char *command);
 void readSerialCommands();
 void printCommands();
-void returnLeadToBottom();
+bool returnLeadToBottom();
 bool waitForFireConfirmation();
-void executeFullDeployment();
+bool executeFullBarrelDeployment();
+void executeFMS();
 bool parseLongValue(const char *text, long &value);
 bool parseFloatValue(const char *text, float &value);
 

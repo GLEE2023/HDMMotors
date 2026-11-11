@@ -23,6 +23,18 @@ void Sensors::begin() {
   lockBarrel();
 }
 
+// Puck latch: set once the puck switch is seen tripped, until cleared. Polled
+// per step during lead moves, and by the deployment sequence.
+void Sensors::updatePuckLatch() {
+  if (isLeadTopSwitchTripped()) {
+    puckLatched = true;
+  }
+}
+
+void Sensors::clearPuckLatch() {
+  puckLatched = false;
+}
+
 // Switch readers: true only if the pin is configured and reads LOW. An
 // unconfigured switch always reads "not tripped". The "top" switch is the puck
 // switch (same pin).
@@ -34,6 +46,10 @@ bool Sensors::isLeadTopSwitchTripped() const {
 bool Sensors::isLeadBottomSwitchTripped() const {
   return hasBottomSwitch() &&
     digitalRead(Config::BOTTOM_LIMIT_SWITCH_PIN) == LOW;
+}
+
+bool Sensors::isPuckLatched() const {
+  return puckLatched;
 }
 
 // True if a puck/top switch pin is configured.
@@ -49,37 +65,8 @@ bool Sensors::hasBarrelSolenoid() const {
   return Config::BARREL_SOLENOID_PIN != Config::UNUSED_PIN;
 }
 
-// Puck latch: set once the puck switch is seen tripped, until cleared. Polled
-// per step during lead moves, and by the deployment sequence.
-void Sensors::updatePuckLatch() {
-  if (isLeadTopSwitchTripped()) {
-    puckLatched = true;
-  }
-}
-
-bool Sensors::isPuckLatched() const {
-  return puckLatched;
-}
-
-void Sensors::clearPuckLatch() {
-  puckLatched = false;
-}
-
 bool Sensors::hasBurnwireTrigger() const {
   return Config::BURNWIRE_TRIGGER_PIN != Config::UNUSED_PIN;
-}
-
-// Drives the burnwire pin high for durationMs (blocking delay), then low.
-// Does nothing if the pin is unconfigured; callers check hasBurnwireTrigger()
-// first so they can report that no pulse was sent.
-void Sensors::fireBurnwire(unsigned long durationMs) {
-  if (!hasBurnwireTrigger()) {
-    return;
-  }
-
-  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, HIGH);
-  delay(durationMs);
-  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, LOW);
 }
 
 // Sets the solenoid to its active level; waits the settle time only if it was
@@ -118,6 +105,19 @@ void Sensors::lockBarrel() {
   }
 
   barrelUnlocked = false;
+}
+
+// Drives the burnwire pin high for durationMs (blocking delay), then low.
+// Does nothing if the pin is unconfigured; callers check hasBurnwireTrigger()
+// first so they can report that no pulse was sent.
+void Sensors::fireBurnwire(unsigned long durationMs) {
+  if (!hasBurnwireTrigger()) {
+    return;
+  }
+
+  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, HIGH);
+  delay(durationMs);
+  digitalWrite(Config::BURNWIRE_TRIGGER_PIN, LOW);
 }
 
 // Prints live switch states and the commanded (not sensed) solenoid state.

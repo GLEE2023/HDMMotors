@@ -13,7 +13,7 @@ void test_question_mark_prints_every_command(void) {
   t::run("?");
   ASSERT_OUT_HAS("========== COMMANDS ==========");
   const char *const entries[] = {
-    "  G / g ", "  H / h ", "  w ", "  e ", "  m / M ", "  W / S ",
+    "  Q / q ", "  G / g ", "  H / h ", "  w ", "  e ", "  m / M ", "  W / S ",
     "  + / - ", "  N / P ", "  B ", "  I5 ", "  Y12.5 ", "  R0.25 ",
     "  Z ", "  C ", "  T / t ", "  X ", "  U ", "  ? ",
   };
@@ -29,7 +29,7 @@ void test_help_describes_h_and_b_differently(void) {
 }
 
 void test_unknown_command_prints_message_and_list(void) {
-  t::run("Q");
+  t::run("K");
   ASSERT_OUT_HAS("Unknown command.");
   ASSERT_OUT_HAS("========== COMMANDS ==========");
   EQ(0, t::leadPulses() + t::barrelPulses() + t::yawPulses());

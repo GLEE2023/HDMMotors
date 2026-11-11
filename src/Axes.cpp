@@ -12,113 +12,74 @@ Axes::Axes(StepperController &stepperController, Sensors &sensorsRef)
 {
 }
 
-// Converts a lead-screw travel distance in millimeters into the matching motor step count.
-long Axes::leadMillimetersToSteps(float millimeters) const {
-  return lround(millimeters * Config::LEAD_STEPS_PER_MM);
+// Resets the yaw step counter to the current position as zero.
+void Axes::setYawPositionAsZero() {
+  yawPositionSteps = 0;
+  Serial.println(F("Current yaw position set as 0 degrees."));
 }
 
-// Converts a stored lead-screw step count back into travel distance in millimeters.
-float Axes::leadStepsToMillimeters(long steps) const {
-  if (Config::LEAD_STEPS_PER_MM <= 0.0f) {
-    return 0.0f;
-  }
-
-  return (float)steps / Config::LEAD_STEPS_PER_MM;
+// Returns the tracked lead-screw position relative to its bottom reference.
+float Axes::getLeadPositionMillimeters() const {
+  return leadStepsToMillimeters(leadPositionSteps);
 }
 
-// Returns the physical height of a given puck level above the bottom reference point.
-float Axes::getLeadPuckLevelMillimeters(uint8_t puckLevel) const {
-  if (puckLevel == 0) {
-    return 0.0f;
-  }
-
-  if (puckLevel == 1) {
-    return Config::FIRST_PUCK_EXTRA_OFFSET_MM;
-  }
-
-  return Config::FIRST_PUCK_EXTRA_OFFSET_MM +
-    ((float)(puckLevel - 1) * Config::PUCK_HEIGHT_MM);
+// Returns the currently tracked puck level for the lead screw.
+int8_t Axes::getLeadPuckLevel() const {
+  return leadPuckLevel;
 }
 
-// Infers the current puck level from the physical lead-screw position.
-int8_t Axes::inferLeadPuckLevelFromPosition(long positionSteps) const {
-  const float currentMillimeters = leadStepsToMillimeters(positionSteps);
+// Software-only move to tracked position 0; limited to the tracked distance, so
+// it does not reach the true bottom if the tracked position is wrong.
+void Axes::moveLeadToBottom() {
+  moveLeadToStepPosition(0);
 
-  for (uint8_t puckLevel = Config::PUCK_COUNT; puckLevel > 0; --puckLevel) {
-    if (currentMillimeters >= getLeadPuckLevelMillimeters(puckLevel)) {
-      return (int8_t)puckLevel;
+  if (leadPositionSteps == 0) {
+    leadPuckLevel = 0;
+  }
+}
+
+// B command. Ignores the tracked position: drives down BARREL_HEIGHT_MM worth of
+// steps in 2000-step chunks, stopping early if the bottom switch is tripped or a
+// chunk is cut short by x/X. Afterwards position is set to 0 and level to 0 in
+// every case: switch tripped, full travel done (assumed, unconfirmed), or
+// stopped by x/X (the stop point is taken as the new zero).
+bool Axes::moveLeadToBottomFullDown() {
+  long remainingSteps = leadMillimetersToSteps(Config::BARREL_HEIGHT_MM);
+
+  Serial.println(F("Running lead screw down for the full configured travel..."));
+
+  while (remainingSteps > 0 && !sensors.isLeadBottomSwitchTripped()) {
+    const long requestedSteps = min(remainingSteps, 2000L);
+    const long completedSteps = -stepper.moveSteps(
+      Config::MotorId::LeadScrew,
+      -requestedSteps,
+      Config::LEAD_POSITIVE_DIRECTION_LEVEL,
+      Config::LEAD_PROFILE
+    );
+
+    remainingSteps -= completedSteps;
+
+    if (completedSteps != requestedSteps) {
+      break;
     }
   }
 
-  return 0;
-}
+  stepper.takeLeadLimitEvent();
 
-// Re-evaluates the lead position after the stepper reports a bottom microswitch stop.
-bool Axes::applyLeadLimitEvent() {
-  const StepperController::LeadLimit limit = stepper.takeLeadLimitEvent();
+  leadPositionSteps = 0;
+  leadPuckLevel = 0;
 
-  if (limit == StepperController::LeadLimit::Bottom) {
-    leadPositionSteps = 0;
-    leadPuckLevel = 0;
-    return true;
+  if (sensors.isLeadBottomSwitchTripped()) {
+    Serial.println(F("Lead screw reached the physical bottom stop."));
   }
-
-  return false;
-}
-
-// Moves to an absolute tracked step position, clamped to 0..BARREL_HEIGHT_MM.
-// Bottom switch stop -> position 0, level 0. Incomplete move -> level -1.
-// A completed move leaves the puck level unchanged (callers set it).
-void Axes::moveLeadToStepPosition(long targetStepPosition) {
-  const long totalTravelSteps = leadMillimetersToSteps(
-    Config::BARREL_HEIGHT_MM
-  );
-
-  if (targetStepPosition < 0) {
-    targetStepPosition = 0;
-  }
-
-  if (targetStepPosition > totalTravelSteps) {
-    targetStepPosition = totalTravelSteps;
-  }
-
-  long requestedMovement = targetStepPosition - leadPositionSteps;
-
-  if (requestedMovement == 0) {
-    Serial.println(F("Lead screw is already at that position."));
-    return;
-  }
-
-  long completedMovement = stepper.moveSteps(
-    Config::MotorId::LeadScrew,
-    requestedMovement,
-    Config::LEAD_POSITIVE_DIRECTION_LEVEL,
-    Config::LEAD_PROFILE
-  );
-
-  leadPositionSteps += completedMovement;
-
-  const bool limitTripped = applyLeadLimitEvent();
-
-  if (limitTripped) {
-    Serial.println(F("Lead-screw movement ended at a limit microswitch."));
-  }
-  else if (completedMovement == requestedMovement) {
-    leadPositionSteps = targetStepPosition;
+  else if (remainingSteps <= 0) {
+    Serial.println(F("Bottom switch did not trip; assuming bottom from the step count."));
   }
   else {
-    // a stopped move no longer matches a known puck level
-    leadPuckLevel = -1;
-    Serial.println(F("Lead-screw movement stopped before completion."));
+    Serial.println(F("Lead screw stopped early; current position set as bottom (0 mm)."));
   }
 
-  Serial.print(F("Lead position: "));
-  Serial.print(leadStepsToMillimeters(leadPositionSteps), 3);
-  Serial.print(F(" / "));
-  Serial.print(Config::BARREL_HEIGHT_MM, 3);
-  Serial.print(F(" mm ("));
-  Serial.print(leadPositionSteps);
-  Serial.println(F(" steps)"));
+  return sensors.isLeadBottomSwitchTripped() || remainingSteps <= 0;
 }
 
 // Moves to the height of a puck level (0 = bottom). Returns true only if the
@@ -161,6 +122,32 @@ bool Axes::moveLeadToPuckLevel(uint8_t targetPuckLevel) {
   return false;
 }
 
+// Relative lead move (clamped to 0..BARREL_HEIGHT_MM). A clamped move keeps the
+// clamped position as the new reference. Returns true only if the unclamped
+// target was reached (false when clamped). The puck level is re-inferred from
+// position if the lead reached its clamped target, or set to -1 if the move
+// was cut short.
+bool Axes::moveLeadRelativeMillimeters(float millimeters) {
+  if (millimeters == 0.0f) {
+    return true;
+  }
+
+  const long requestedTarget = leadPositionSteps + leadMillimetersToSteps(millimeters);
+  const long clampedTarget = constrain(
+    requestedTarget,
+    0L,
+    leadMillimetersToSteps(Config::BARREL_HEIGHT_MM)
+  );
+
+  moveLeadToStepPosition(requestedTarget);
+
+  leadPuckLevel = leadPositionSteps == clampedTarget
+    ? inferLeadPuckLevelFromPosition(leadPositionSteps)
+    : -1;
+
+  return leadPositionSteps == requestedTarget;
+}
+
 // W command. If the level is unknown (-1) it is inferred from position first.
 // Fails if already at the top level.
 bool Axes::moveLeadUpOnePuck() {
@@ -194,32 +181,6 @@ bool Axes::moveLeadDownOnePuck() {
   return moveLeadToPuckLevel((uint8_t)(currentPuckLevel - 1));
 }
 
-// Relative lead move (clamped to 0..BARREL_HEIGHT_MM). A clamped move keeps the
-// clamped position as the new reference. Returns true only if the unclamped
-// target was reached (false when clamped). The puck level is re-inferred from
-// position if the lead reached its clamped target, or set to -1 if the move
-// was cut short.
-bool Axes::moveLeadRelativeMillimeters(float millimeters) {
-  if (millimeters == 0.0f) {
-    return true;
-  }
-
-  const long requestedTarget = leadPositionSteps + leadMillimetersToSteps(millimeters);
-  const long clampedTarget = constrain(
-    requestedTarget,
-    0L,
-    leadMillimetersToSteps(Config::BARREL_HEIGHT_MM)
-  );
-
-  moveLeadToStepPosition(requestedTarget);
-
-  leadPuckLevel = leadPositionSteps == clampedTarget
-    ? inferLeadPuckLevelFromPosition(leadPositionSteps)
-    : -1;
-
-  return leadPositionSteps == requestedTarget;
-}
-
 // Moves the lead screw up by 1 mm for alignment checks.
 void Axes::moveLeadUpOneMillimeter() {
   moveLeadRelativeMillimeters(1.0f);
@@ -230,119 +191,10 @@ void Axes::moveLeadDownOneMillimeter() {
   moveLeadRelativeMillimeters(-1.0f);
 }
 
-// Returns the currently tracked puck level for the lead screw.
-int8_t Axes::getLeadPuckLevel() const {
-  return leadPuckLevel;
-}
-
-// Returns the tracked lead-screw position relative to its bottom reference.
-float Axes::getLeadPositionMillimeters() const {
-  return leadStepsToMillimeters(leadPositionSteps);
-}
-
-// B command. Ignores the tracked position: drives down BARREL_HEIGHT_MM worth of
-// steps in 2000-step chunks, stopping early if the bottom switch is tripped or a
-// chunk is cut short by x/X. Afterwards position is set to 0 and level to 0 in
-// every case: switch tripped, full travel done (assumed, unconfirmed), or
-// stopped by x/X (the stop point is taken as the new zero).
-void Axes::moveLeadToBottomFullDown() {
-  long remainingSteps = leadMillimetersToSteps(Config::BARREL_HEIGHT_MM);
-
-  Serial.println(F("Running lead screw down for the full configured travel..."));
-
-  while (remainingSteps > 0 && !sensors.isLeadBottomSwitchTripped()) {
-    const long requestedSteps = min(remainingSteps, 2000L);
-    const long completedSteps = -stepper.moveSteps(
-      Config::MotorId::LeadScrew,
-      -requestedSteps,
-      Config::LEAD_POSITIVE_DIRECTION_LEVEL,
-      Config::LEAD_PROFILE
-    );
-
-    remainingSteps -= completedSteps;
-
-    if (completedSteps != requestedSteps) {
-      break;
-    }
-  }
-
-  stepper.takeLeadLimitEvent();
-
-  leadPositionSteps = 0;
-  leadPuckLevel = 0;
-
-  if (sensors.isLeadBottomSwitchTripped()) {
-    Serial.println(F("Lead screw reached the physical bottom stop."));
-  }
-  else if (remainingSteps <= 0) {
-    Serial.println(F("Bottom switch did not trip; assuming bottom from the step count."));
-  }
-  else {
-    Serial.println(F("Lead screw stopped early; current position set as bottom (0 mm)."));
-  }
-}
-
-// Software-only move to tracked position 0; limited to the tracked distance, so
-// it does not reach the true bottom if the tracked position is wrong.
-void Axes::moveLeadToBottom() {
-  moveLeadToStepPosition(0);
-
-  if (leadPositionSteps == 0) {
-    leadPuckLevel = 0;
-  }
-}
-
-// Calculates how many microsteps are needed for one full revolution of the barrel motor.
-long Axes::getBarrelStepsPerRevolution() const {
-  float calculatedSteps =
-    (float)Config::BARREL_MOTOR_FULL_STEPS_PER_REVOLUTION *
-    (float)Config::BARREL_MICROSTEPS *
-    Config::BARREL_GEAR_RATIO;
-
-  return lround(calculatedSteps);
-}
-
-// Keeps the barrel position wrapped into a single revolution of step-space.
-long Axes::normalizeBarrelPosition(long position) const {
-  long stepsPerRevolution = getBarrelStepsPerRevolution();
-
-  if (stepsPerRevolution <= 0) {
-    return 0;
-  }
-
-  position %= stepsPerRevolution;
-
-  if (position < 0) {
-    position += stepsPerRevolution;
-  }
-
-  return position;
-}
-
-// Returns the chamber index that best matches the current barrel step position.
-int Axes::getNearestBarrelIndex() const {
-  long stepsPerRevolution = getBarrelStepsPerRevolution();
-
-  if (stepsPerRevolution <= 0) {
-    return 0;
-  }
-
-  long roundedIndex =
-    (
-      barrelPositionSteps * Config::BARREL_POSITION_COUNT +
-      stepsPerRevolution / 2L
-    ) /
-    stepsPerRevolution;
-
-  roundedIndex %= Config::BARREL_POSITION_COUNT;
-
-  return (int)roundedIndex;
-}
-
 // Rotates the barrel to an index by the shortest direction (barrel motor only).
 // Runs even without a solenoid (warns); with one, unlocks before and locks after
 // the move. Position is trusted only if the full move completed.
-void Axes::moveBarrelToIndex(int targetIndex) {
+bool Axes::moveBarrelToIndex(int targetIndex) {
   if (
     targetIndex < 0 ||
     targetIndex >= Config::BARREL_POSITION_COUNT
@@ -350,14 +202,14 @@ void Axes::moveBarrelToIndex(int targetIndex) {
     Serial.print(F("Barrel index must be between 0 and "));
     Serial.print(Config::BARREL_POSITION_COUNT - 1);
     Serial.println(F("."));
-    return;
+    return false;
   }
 
   long stepsPerRevolution = getBarrelStepsPerRevolution();
 
   if (stepsPerRevolution <= 0) {
     Serial.println(F("Invalid barrel calibration."));
-    return;
+    return false;
   }
 
   long targetStepPosition = lround(
@@ -409,60 +261,30 @@ void Axes::moveBarrelToIndex(int targetIndex) {
   else {
     Serial.println(F("Barrel movement stopped before completion."));
   }
+
+  return completedMovement == requestedMovement;
 }
 
 // Advances the barrel to the next chamber index.
-void Axes::moveBarrelToNextIndex() {
+bool Axes::moveBarrelToNextIndex() {
   int nextIndex = getNearestBarrelIndex() + 1;
 
   if (nextIndex >= Config::BARREL_POSITION_COUNT) {
     nextIndex = 0;
   }
 
-  moveBarrelToIndex(nextIndex);
+  return moveBarrelToIndex(nextIndex);
 }
 
 // Moves the barrel back to the previous chamber index.
-void Axes::moveBarrelToPreviousIndex() {
+bool Axes::moveBarrelToPreviousIndex() {
   int previousIndex = getNearestBarrelIndex() - 1;
 
   if (previousIndex < 0) {
     previousIndex = Config::BARREL_POSITION_COUNT - 1;
   }
 
-  moveBarrelToIndex(previousIndex);
-}
-
-// Converts yaw angle into the equivalent step count for the configured motor.
-float Axes::getYawStepsPerDegree() const {
-  float outputStepsPerRevolution =
-    (float)Config::YAW_MOTOR_FULL_STEPS_PER_REVOLUTION *
-    (float)Config::YAW_MICROSTEPS *
-    Config::YAW_GEAR_RATIO;
-
-  return outputStepsPerRevolution / 360.0f;
-}
-
-// Converts one yaw step into a tiny angular change so the motion can be reported in degrees.
-float Axes::getYawDegreesPerStep() const {
-  float stepsPerDegree = getYawStepsPerDegree();
-
-  if (stepsPerDegree <= 0.0f) {
-    return 0.0f;
-  }
-
-  return 1.0f / stepsPerDegree;
-}
-
-// Returns the current yaw angle based on the internal step counter.
-float Axes::getCurrentYawDegrees() const {
-  float stepsPerDegree = getYawStepsPerDegree();
-
-  if (stepsPerDegree <= 0.0f) {
-    return 0.0f;
-  }
-
-  return (float)yawPositionSteps / stepsPerDegree;
+  return moveBarrelToIndex(previousIndex);
 }
 
 // Moves yaw to an absolute angle, clamped to the configured limits (a clamp is
@@ -523,12 +345,6 @@ void Axes::moveYawRelativeDegrees(float movementDegrees) {
   moveYawToDegrees(getCurrentYawDegrees() + movementDegrees);
 }
 
-// Resets the yaw step counter to the current position as zero.
-void Axes::setYawPositionAsZero() {
-  yawPositionSteps = 0;
-  Serial.println(F("Current yaw position set as 0 degrees."));
-}
-
 // Reports the current state of all axes and their configured limits.
 void Axes::printStatus(Stream &output) const {
   output.println();
@@ -582,4 +398,192 @@ void Axes::printStatus(Stream &output) const {
   output.println(F(" steps"));
 
   output.println(F("====================================="));
+}
+
+// Returns the physical height of a given puck level above the bottom reference point.
+float Axes::getLeadPuckLevelMillimeters(uint8_t puckLevel) const {
+  if (puckLevel == 0) {
+    return 0.0f;
+  }
+
+  if (puckLevel == 1) {
+    return Config::FIRST_PUCK_EXTRA_OFFSET_MM;
+  }
+
+  return Config::FIRST_PUCK_EXTRA_OFFSET_MM +
+    ((float)(puckLevel - 1) * Config::PUCK_HEIGHT_MM);
+}
+
+// Calculates how many microsteps are needed for one full revolution of the barrel motor.
+long Axes::getBarrelStepsPerRevolution() const {
+  float calculatedSteps =
+    (float)Config::BARREL_MOTOR_FULL_STEPS_PER_REVOLUTION *
+    (float)Config::BARREL_MICROSTEPS *
+    Config::BARREL_GEAR_RATIO;
+
+  return lround(calculatedSteps);
+}
+
+// Returns the chamber index that best matches the current barrel step position.
+int Axes::getNearestBarrelIndex() const {
+  long stepsPerRevolution = getBarrelStepsPerRevolution();
+
+  if (stepsPerRevolution <= 0) {
+    return 0;
+  }
+
+  long roundedIndex =
+    (
+      barrelPositionSteps * Config::BARREL_POSITION_COUNT +
+      stepsPerRevolution / 2L
+    ) /
+    stepsPerRevolution;
+
+  roundedIndex %= Config::BARREL_POSITION_COUNT;
+
+  return (int)roundedIndex;
+}
+
+// Converts yaw angle into the equivalent step count for the configured motor.
+float Axes::getYawStepsPerDegree() const {
+  float outputStepsPerRevolution =
+    (float)Config::YAW_MOTOR_FULL_STEPS_PER_REVOLUTION *
+    (float)Config::YAW_MICROSTEPS *
+    Config::YAW_GEAR_RATIO;
+
+  return outputStepsPerRevolution / 360.0f;
+}
+
+// Returns the current yaw angle based on the internal step counter.
+float Axes::getCurrentYawDegrees() const {
+  float stepsPerDegree = getYawStepsPerDegree();
+
+  if (stepsPerDegree <= 0.0f) {
+    return 0.0f;
+  }
+
+  return (float)yawPositionSteps / stepsPerDegree;
+}
+
+// Converts one yaw step into a tiny angular change so the motion can be reported in degrees.
+float Axes::getYawDegreesPerStep() const {
+  float stepsPerDegree = getYawStepsPerDegree();
+
+  if (stepsPerDegree <= 0.0f) {
+    return 0.0f;
+  }
+
+  return 1.0f / stepsPerDegree;
+}
+
+// Converts a lead-screw travel distance in millimeters into the matching motor step count.
+long Axes::leadMillimetersToSteps(float millimeters) const {
+  return lround(millimeters * Config::LEAD_STEPS_PER_MM);
+}
+
+// Converts a stored lead-screw step count back into travel distance in millimeters.
+float Axes::leadStepsToMillimeters(long steps) const {
+  if (Config::LEAD_STEPS_PER_MM <= 0.0f) {
+    return 0.0f;
+  }
+
+  return (float)steps / Config::LEAD_STEPS_PER_MM;
+}
+
+// Infers the current puck level from the physical lead-screw position.
+int8_t Axes::inferLeadPuckLevelFromPosition(long positionSteps) const {
+  const float currentMillimeters = leadStepsToMillimeters(positionSteps);
+
+  for (uint8_t puckLevel = Config::PUCK_COUNT; puckLevel > 0; --puckLevel) {
+    if (currentMillimeters >= getLeadPuckLevelMillimeters(puckLevel)) {
+      return (int8_t)puckLevel;
+    }
+  }
+
+  return 0;
+}
+
+// Moves to an absolute tracked step position, clamped to 0..BARREL_HEIGHT_MM.
+// Bottom switch stop -> position 0, level 0. Incomplete move -> level -1.
+// A completed move leaves the puck level unchanged (callers set it).
+void Axes::moveLeadToStepPosition(long targetStepPosition) {
+  const long totalTravelSteps = leadMillimetersToSteps(
+    Config::BARREL_HEIGHT_MM
+  );
+
+  if (targetStepPosition < 0) {
+    targetStepPosition = 0;
+  }
+
+  if (targetStepPosition > totalTravelSteps) {
+    targetStepPosition = totalTravelSteps;
+  }
+
+  long requestedMovement = targetStepPosition - leadPositionSteps;
+
+  if (requestedMovement == 0) {
+    Serial.println(F("Lead screw is already at that position."));
+    return;
+  }
+
+  long completedMovement = stepper.moveSteps(
+    Config::MotorId::LeadScrew,
+    requestedMovement,
+    Config::LEAD_POSITIVE_DIRECTION_LEVEL,
+    Config::LEAD_PROFILE
+  );
+
+  leadPositionSteps += completedMovement;
+
+  const bool limitTripped = applyLeadLimitEvent();
+
+  if (limitTripped) {
+    Serial.println(F("Lead-screw movement ended at a limit microswitch."));
+  }
+  else if (completedMovement == requestedMovement) {
+    leadPositionSteps = targetStepPosition;
+  }
+  else {
+    // a stopped move no longer matches a known puck level
+    leadPuckLevel = -1;
+    Serial.println(F("Lead-screw movement stopped before completion."));
+  }
+
+  Serial.print(F("Lead position: "));
+  Serial.print(leadStepsToMillimeters(leadPositionSteps), 3);
+  Serial.print(F(" / "));
+  Serial.print(Config::BARREL_HEIGHT_MM, 3);
+  Serial.print(F(" mm ("));
+  Serial.print(leadPositionSteps);
+  Serial.println(F(" steps)"));
+}
+
+// Re-evaluates the lead position after the stepper reports a bottom microswitch stop.
+bool Axes::applyLeadLimitEvent() {
+  const StepperController::LeadLimit limit = stepper.takeLeadLimitEvent();
+
+  if (limit == StepperController::LeadLimit::Bottom) {
+    leadPositionSteps = 0;
+    leadPuckLevel = 0;
+    return true;
+  }
+
+  return false;
+}
+
+// Keeps the barrel position wrapped into a single revolution of step-space.
+long Axes::normalizeBarrelPosition(long position) const {
+  long stepsPerRevolution = getBarrelStepsPerRevolution();
+
+  if (stepsPerRevolution <= 0) {
+    return 0;
+  }
+
+  position %= stepsPerRevolution;
+
+  if (position < 0) {
+    position += stepsPerRevolution;
+  }
+
+  return position;
 }

@@ -29,14 +29,46 @@ void ServoController::begin()
   delay(300);
 }
 
-// Immediate write of both angles (clamped to 0-180); no ramp, no wait.
-void ServoController::writeServos(int left, int right)
+// Smooth move of both servos to the rest angles.
+void ServoController::reset()
 {
-  leftAngle = constrain(left, 0, 180);
-  rightAngle = constrain(right, 0, 180);
+  moveServosSmooth(
+    Config::LEFT_SERVO_REST,
+    Config::RIGHT_SERVO_REST
+  );
+}
 
-  leftServo.write(leftAngle);
-  rightServo.write(rightAngle);
+// Smooth move of both servos to the arm angles.
+void ServoController::arm()
+{
+  moveServosSmooth(
+    Config::LEFT_SERVO_ARM,
+    Config::RIGHT_SERVO_ARM
+  );
+}
+
+// Smooth move of both servos to the fire angles, hold SERVO_FIRE_HOLD_MS, then
+// smooth return to rest.
+void ServoController::fire()
+{
+  moveServosSmooth(
+    Config::LEFT_SERVO_FIRE,
+    Config::RIGHT_SERVO_FIRE
+  );
+
+  delay(Config::SERVO_FIRE_HOLD_MS);
+
+  reset();
+}
+
+// Prints the tracked (last commanded) angles, not measured ones.
+void ServoController::printStatus(Stream &output) const
+{
+  output.print(F("Left servo: "));
+  output.print(leftAngle);
+
+  output.print(F("  Right servo: "));
+  output.println(rightAngle);
 }
 
 // Moves angle one SERVO_ANGLE_STEP toward target without overshooting it.
@@ -78,44 +110,12 @@ void ServoController::moveServosSmooth(
   }
 }
 
-// Smooth move of both servos to the rest angles.
-void ServoController::reset()
+// Immediate write of both angles (clamped to 0-180); no ramp, no wait.
+void ServoController::writeServos(int left, int right)
 {
-  moveServosSmooth(
-    Config::LEFT_SERVO_REST,
-    Config::RIGHT_SERVO_REST
-  );
-}
+  leftAngle = constrain(left, 0, 180);
+  rightAngle = constrain(right, 0, 180);
 
-// Smooth move of both servos to the arm angles.
-void ServoController::arm()
-{
-  moveServosSmooth(
-    Config::LEFT_SERVO_ARM,
-    Config::RIGHT_SERVO_ARM
-  );
-}
-
-// Smooth move of both servos to the fire angles, hold SERVO_FIRE_HOLD_MS, then
-// smooth return to rest.
-void ServoController::fire()
-{
-  moveServosSmooth(
-    Config::LEFT_SERVO_FIRE,
-    Config::RIGHT_SERVO_FIRE
-  );
-
-  delay(Config::SERVO_FIRE_HOLD_MS);
-
-  reset();
-}
-
-// Prints the tracked (last commanded) angles, not measured ones.
-void ServoController::printStatus(Stream &output) const
-{
-  output.print(F("Left servo: "));
-  output.print(leftAngle);
-
-  output.print(F("  Right servo: "));
-  output.println(rightAngle);
+  leftServo.write(leftAngle);
+  rightServo.write(rightAngle);
 }

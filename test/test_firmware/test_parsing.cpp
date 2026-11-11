@@ -100,7 +100,7 @@ void test_line_runs_only_at_newline(void) {
 }
 
 void test_line_assembled_across_calls(void) {
-  Serial.feed("Q");
+  Serial.feed("K");
   readSerialCommands();
   Serial.feed("\n");
   readSerialCommands();

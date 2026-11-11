@@ -33,9 +33,9 @@ private:
   int leftAngle;
   int rightAngle;
 
-  // Writes angles to both servos.
-  void writeServos(int left, int right);
-
   // Moves both servos smoothly toward their requested targets.
   void moveServosSmooth(int targetLeft, int targetRight);
+
+  // Writes angles to both servos.
+  void writeServos(int left, int right);
 };

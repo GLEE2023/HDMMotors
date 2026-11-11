@@ -54,16 +54,11 @@ void StepperController::begin() {
   configureLeadDriver();
 }
 
-// Lead TMC5160 over SPI: SpreadCycle, configured current and microsteps.
-// No return value or error check on the SPI writes.
-void StepperController::configureLeadDriver() {
-  leadDriver.begin();
-  leadDriver.toff(5);
-  leadDriver.rms_current(Config::LEAD_CURRENT_MA);
-  leadDriver.microsteps(Config::LEAD_MICROSTEPS);
-
-  // SpreadCycle mode
-  leadDriver.en_pwm_mode(false);
+// Returns the limit event from the last lead move and clears it.
+StepperController::LeadLimit StepperController::takeLeadLimitEvent() {
+  LeadLimit event = leadLimitEvent;
+  leadLimitEvent = LeadLimit::None;
+  return event;
 }
 
 // Calls disableMotor on all three motors; true only if every one had an enable pin.
@@ -73,59 +68,6 @@ bool StepperController::disableAllMotors() {
   const bool yawDisabled = disableMotor(Config::MotorId::Yaw);
 
   return leadDisabled && barrelDisabled && yawDisabled;
-}
-
-// Pin lookups; UNUSED_PIN is returned for MotorId::None.
-uint8_t StepperController::getStepPin(Config::MotorId motor) const {
-  switch (motor) {
-    case Config::MotorId::LeadScrew:
-      return Config::LEAD_STEP_PIN;
-
-    case Config::MotorId::Barrel:
-      return Config::BARREL_STEP_PIN;
-
-    case Config::MotorId::Yaw:
-      return Config::YAW_STEP_PIN;
-
-    case Config::MotorId::None:
-    default:
-      return Config::UNUSED_PIN;
-  }
-}
-
-uint8_t StepperController::getDirectionPin(Config::MotorId motor) const {
-  switch (motor) {
-    case Config::MotorId::LeadScrew:
-      return Config::LEAD_DIRECTION_PIN;
-
-    case Config::MotorId::Barrel:
-      return Config::BARREL_DIRECTION_PIN;
-
-    case Config::MotorId::Yaw:
-      return Config::YAW_DIRECTION_PIN;
-
-    case Config::MotorId::None:
-    default:
-      return Config::UNUSED_PIN;
-  }
-}
-
-// Returns UNUSED_PIN when the motor's enable pin is not configured.
-uint8_t StepperController::getEnablePin(Config::MotorId motor) const {
-  switch (motor) {
-    case Config::MotorId::LeadScrew:
-      return Config::LEAD_ENABLE_PIN;
-
-    case Config::MotorId::Barrel:
-      return Config::BARREL_ENABLE_PIN;
-
-    case Config::MotorId::Yaw:
-      return Config::YAW_ENABLE_PIN;
-
-    case Config::MotorId::None:
-    default:
-      return Config::UNUSED_PIN;
-  }
 }
 
 // Always sets STEP low. Drives the enable pin high (disabled, active-low enable)
@@ -145,118 +87,6 @@ bool StepperController::disableMotor(Config::MotorId motor) {
   }
 
   digitalWrite(enablePin, HIGH);
-  return true;
-}
-
-// Returns the limit event from the last lead move and clears it.
-StepperController::LeadLimit StepperController::takeLeadLimitEvent() {
-  LeadLimit event = leadLimitEvent;
-  leadLimitEvent = LeadLimit::None;
-  return event;
-}
-
-// Drives the enable pin low (enabled) and waits ENABLE_SETTLE_TIME_MS; does
-// nothing if no enable pin is configured.
-void StepperController::enableMotor(Config::MotorId motor) {
-  const uint8_t enablePin = getEnablePin(motor);
-
-  if (enablePin != Config::UNUSED_PIN) {
-    digitalWrite(enablePin, LOW);
-    delay(Config::ENABLE_SETTLE_TIME_MS);
-  }
-}
-
-// Delay (us) after step stepNumber. Fixed cruise delay if the profile has no
-// ramp or start <= cruise; otherwise a linear ramp from start to cruise over
-// min(accelerationSteps, totalSteps/2) steps at both the start and the end.
-uint16_t StepperController::calculatePulseDelay(
-  unsigned long stepNumber,
-  unsigned long totalSteps,
-  const Config::MotionProfile &profile
-) const {
-  // For the lead screw, use the fixed delay from the working test code.
-  if (profile.accelerationSteps == 0) {
-    return profile.cruiseDelayUs;
-  }
-
-  if (
-    profile.startingDelayUs <= profile.cruiseDelayUs ||
-    totalSteps < 2
-  ) {
-    return profile.cruiseDelayUs;
-  }
-
-  unsigned long rampSteps = profile.accelerationSteps;
-  unsigned long halfMovement = totalSteps / 2UL;
-
-  if (rampSteps > halfMovement) {
-    rampSteps = halfMovement;
-  }
-
-  if (rampSteps == 0) {
-    return profile.cruiseDelayUs;
-  }
-
-  unsigned long distanceFromStart = stepNumber;
-  unsigned long distanceFromEnd =
-    totalSteps - stepNumber - 1UL;
-
-  unsigned long distanceFromNearestEnd = distanceFromStart;
-
-  if (distanceFromEnd < distanceFromNearestEnd) {
-    distanceFromNearestEnd = distanceFromEnd;
-  }
-
-  if (distanceFromNearestEnd >= rampSteps) {
-    return profile.cruiseDelayUs;
-  }
-
-  unsigned long delayRange =
-    (unsigned long)profile.startingDelayUs -
-    (unsigned long)profile.cruiseDelayUs;
-
-  unsigned long delayReduction =
-    (delayRange * distanceFromNearestEnd) /
-    rampSteps;
-
-  return (uint16_t)(
-    (unsigned long)profile.startingDelayUs -
-    delayReduction
-  );
-}
-
-// True if the next serial byte is x/X; that byte plus following CR/LF is
-// consumed. Any other pending byte is left in the buffer (not consumed).
-bool StepperController::emergencyStopRequested() {
-  if (Serial.available() <= 0) {
-    return false;
-  }
-
-  char incomingCharacter = (char)Serial.peek();
-
-  if (incomingCharacter != 'x' &&
-      incomingCharacter != 'X') {
-    return false;
-  }
-
-  Serial.read();
-
-  while (Serial.available() > 0) {
-    char leftover = (char)Serial.peek();
-
-    if (leftover == '\r' || leftover == '\n')
-    {
-      Serial.read();
-    }
-    else
-    {
-      break;
-    }
-  }
-
-  Serial.println();
-  Serial.println(F("EMERGENCY STOP"));
-
   return true;
 }
 
@@ -514,4 +344,174 @@ void StepperController::printConnectionTests(Stream &output) {
 
   output.println(F(" Barrel TMC2209: standalone STEP/DIR; no UART test."));
   output.println(F(" Yaw TMC2209: standalone STEP/DIR; no UART test."));
+}
+
+// Pin lookups; UNUSED_PIN is returned for MotorId::None.
+uint8_t StepperController::getStepPin(Config::MotorId motor) const {
+  switch (motor) {
+    case Config::MotorId::LeadScrew:
+      return Config::LEAD_STEP_PIN;
+
+    case Config::MotorId::Barrel:
+      return Config::BARREL_STEP_PIN;
+
+    case Config::MotorId::Yaw:
+      return Config::YAW_STEP_PIN;
+
+    case Config::MotorId::None:
+    default:
+      return Config::UNUSED_PIN;
+  }
+}
+
+uint8_t StepperController::getDirectionPin(Config::MotorId motor) const {
+  switch (motor) {
+    case Config::MotorId::LeadScrew:
+      return Config::LEAD_DIRECTION_PIN;
+
+    case Config::MotorId::Barrel:
+      return Config::BARREL_DIRECTION_PIN;
+
+    case Config::MotorId::Yaw:
+      return Config::YAW_DIRECTION_PIN;
+
+    case Config::MotorId::None:
+    default:
+      return Config::UNUSED_PIN;
+  }
+}
+
+// Returns UNUSED_PIN when the motor's enable pin is not configured.
+uint8_t StepperController::getEnablePin(Config::MotorId motor) const {
+  switch (motor) {
+    case Config::MotorId::LeadScrew:
+      return Config::LEAD_ENABLE_PIN;
+
+    case Config::MotorId::Barrel:
+      return Config::BARREL_ENABLE_PIN;
+
+    case Config::MotorId::Yaw:
+      return Config::YAW_ENABLE_PIN;
+
+    case Config::MotorId::None:
+    default:
+      return Config::UNUSED_PIN;
+  }
+}
+
+// Lead TMC5160 over SPI: SpreadCycle, configured current and microsteps.
+// No return value or error check on the SPI writes.
+void StepperController::configureLeadDriver() {
+  leadDriver.begin();
+  leadDriver.toff(5);
+  leadDriver.rms_current(Config::LEAD_CURRENT_MA);
+  leadDriver.microsteps(Config::LEAD_MICROSTEPS);
+
+  // SpreadCycle mode
+  leadDriver.en_pwm_mode(false);
+}
+
+// Drives the enable pin low (enabled) and waits ENABLE_SETTLE_TIME_MS; does
+// nothing if no enable pin is configured.
+void StepperController::enableMotor(Config::MotorId motor) {
+  const uint8_t enablePin = getEnablePin(motor);
+
+  if (enablePin != Config::UNUSED_PIN) {
+    digitalWrite(enablePin, LOW);
+    delay(Config::ENABLE_SETTLE_TIME_MS);
+  }
+}
+
+// Delay (us) after step stepNumber. Fixed cruise delay if the profile has no
+// ramp or start <= cruise; otherwise a linear ramp from start to cruise over
+// min(accelerationSteps, totalSteps/2) steps at both the start and the end.
+uint16_t StepperController::calculatePulseDelay(
+  unsigned long stepNumber,
+  unsigned long totalSteps,
+  const Config::MotionProfile &profile
+) const {
+  // For the lead screw, use the fixed delay from the working test code.
+  if (profile.accelerationSteps == 0) {
+    return profile.cruiseDelayUs;
+  }
+
+  if (
+    profile.startingDelayUs <= profile.cruiseDelayUs ||
+    totalSteps < 2
+  ) {
+    return profile.cruiseDelayUs;
+  }
+
+  unsigned long rampSteps = profile.accelerationSteps;
+  unsigned long halfMovement = totalSteps / 2UL;
+
+  if (rampSteps > halfMovement) {
+    rampSteps = halfMovement;
+  }
+
+  if (rampSteps == 0) {
+    return profile.cruiseDelayUs;
+  }
+
+  unsigned long distanceFromStart = stepNumber;
+  unsigned long distanceFromEnd =
+    totalSteps - stepNumber - 1UL;
+
+  unsigned long distanceFromNearestEnd = distanceFromStart;
+
+  if (distanceFromEnd < distanceFromNearestEnd) {
+    distanceFromNearestEnd = distanceFromEnd;
+  }
+
+  if (distanceFromNearestEnd >= rampSteps) {
+    return profile.cruiseDelayUs;
+  }
+
+  unsigned long delayRange =
+    (unsigned long)profile.startingDelayUs -
+    (unsigned long)profile.cruiseDelayUs;
+
+  unsigned long delayReduction =
+    (delayRange * distanceFromNearestEnd) /
+    rampSteps;
+
+  return (uint16_t)(
+    (unsigned long)profile.startingDelayUs -
+    delayReduction
+  );
+}
+
+// True if the next serial byte is x/X; that byte plus following CR/LF is
+// consumed. Any other pending byte is left in the buffer (not consumed).
+bool StepperController::emergencyStopRequested() {
+  if (Serial.available() <= 0) {
+    return false;
+  }
+
+  char incomingCharacter = (char)Serial.peek();
+
+  if (incomingCharacter != 'x' &&
+      incomingCharacter != 'X') {
+    return false;
+  }
+
+  Serial.read();
+
+  while (Serial.available() > 0) {
+    char leftover = (char)Serial.peek();
+
+    if (leftover == '\r' || leftover == '\n')
+    {
+      Serial.read();
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  Serial.println();
+  Serial.println(F("EMERGENCY STOP"));
+
+  return true;
 }
