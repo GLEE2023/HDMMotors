@@ -4,7 +4,8 @@
 namespace {
 
 constexpr long kPerPuckCycle = t::kPuckHeightSteps + 2 * t::kThreeMmSteps;
-constexpr long kTotalBeforeReturn = t::kLevelOneSteps + 17 * kPerPuckCycle;
+constexpr long kDeploymentOffsetSteps = 252;
+constexpr long kTotalBeforeReturn = t::kLevelOneSteps + kDeploymentOffsetSteps + 17 * kPerPuckCycle;
 
 long fireCount() {
   return hw::servoWrites(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_FIRE);
@@ -13,6 +14,40 @@ long fireCount() {
 void expectServosAtRest() {
   EQ(Config::LEFT_SERVO_REST, hw::lastServoAngle(Config::LEFT_SERVO_PIN));
   EQ(Config::RIGHT_SERVO_REST, hw::lastServoAngle(Config::RIGHT_SERVO_PIN));
+}
+
+void expectFiringHeights(int barrels) {
+  const long firstArm = hw::firstServoWrite(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_ARM);
+  TEST_ASSERT_TRUE(firstArm >= 0);
+  EQ(t::kLevelOneSteps + kDeploymentOffsetSteps + t::kPuckHeightSteps,
+     t::leadNet(static_cast<size_t>(firstArm)));
+  long position = 0;
+  long maximumPosition = 0;
+  int fired = 0;
+  uint8_t direction = LOW;
+  uint8_t step = LOW;
+  for (const hw::Event &event : hw::events) {
+    if (event.kind == hw::Kind::PinWrite && event.a == Config::LEAD_DIRECTION_PIN) {
+      direction = static_cast<uint8_t>(event.b);
+    } else if (event.kind == hw::Kind::PinWrite && event.a == Config::LEAD_STEP_PIN) {
+      if (event.b == HIGH && step == LOW) {
+        position += direction == Config::LEAD_POSITIVE_DIRECTION_LEVEL ? 1 : -1;
+        if (position > maximumPosition)
+          maximumPosition = position;
+      }
+      step = static_cast<uint8_t>(event.b);
+    } else if (event.kind == hw::Kind::ServoWrite &&
+               event.a == Config::LEFT_SERVO_PIN && event.b == Config::LEFT_SERVO_FIRE) {
+      const int puck = fired % Config::PUCK_COUNT;
+      EQ(t::kLevelOneSteps + kDeploymentOffsetSteps +
+         (puck + 1) * t::kPuckHeightSteps - t::kThreeMmSteps, position);
+      ++fired;
+    }
+  }
+  EQ(barrels * Config::PUCK_COUNT, fired);
+  EQ(t::kLevelOneSteps + kDeploymentOffsetSteps +
+     Config::PUCK_COUNT * t::kPuckHeightSteps, maximumPosition);
+  TEST_ASSERT_TRUE(maximumPosition <= t::kFullTravelSteps);
 }
 
 // --- confirmation prompt ---------------------------------------------------------
@@ -165,6 +200,7 @@ void test_q_deploys_all_six_barrels(void) {
   Serial.feed(std::string(Config::BARREL_POSITION_COUNT * Config::PUCK_COUNT, '\n'));
   t::run("Q");
   EQ(Config::BARREL_POSITION_COUNT * Config::PUCK_COUNT, fireCount());
+  expectFiringHeights(Config::BARREL_POSITION_COUNT);
   EQ(Config::BARREL_POSITION_COUNT - 1, t::countOf("Barrel index movement complete."));
   EQ((Config::BARREL_POSITION_COUNT - 1) * t::kBarrelIndexSteps, t::barrelNet());
   EQ(0, t::leadNet());
@@ -239,12 +275,13 @@ void test_g_fires_every_puck_and_returns_to_the_bottom(void) {
   Serial.feed(std::string(17, '\n'));
   t::run("G");
   EQ(17, fireCount());
+  expectFiringHeights(1);
   ASSERT_OUT_HAS("Puck switch is not configured; puck presence will not be verified.");
   EQ(1, t::countOf("Puck switch is not configured"));
   ASSERT_OUT_LACKS("full deployment stopped");
   ASSERT_OUT_LACKS("did not reach the bottom reference");
   EQ(0, t::leadNet());
-  EQ(kTotalBeforeReturn + t::kLevelOneSteps + 17 * t::kPuckHeightSteps,
+  EQ(kTotalBeforeReturn + t::kLevelOneSteps + kDeploymentOffsetSteps + 17 * t::kPuckHeightSteps,
      t::leadPulses());
   EQ(0, axes.getLeadPuckLevel());
 }
@@ -252,10 +289,10 @@ void test_g_fires_every_puck_and_returns_to_the_bottom(void) {
 void test_g_sequence_for_the_first_puck(void) {
   Serial.feed("n\n");
   t::run("G");
-  // Raise to level 1, then one puck up, then lower 3 mm before the prompt.
-  // Pulses: up 1310, up 1411, down 302, then H returns the 2419 still tracked.
-  const long atPrompt = t::kLevelOneSteps + t::kPuckHeightSteps - t::kThreeMmSteps;
-  EQ(t::kLevelOneSteps + t::kPuckHeightSteps + t::kThreeMmSteps + atPrompt,
+  // The initial raise includes the 2.5 mm deployment calibration.
+  const long atPrompt = t::kLevelOneSteps + kDeploymentOffsetSteps +
+    t::kPuckHeightSteps - t::kThreeMmSteps;
+  EQ(t::kLevelOneSteps + kDeploymentOffsetSteps + t::kPuckHeightSteps + t::kThreeMmSteps + atPrompt,
      t::leadPulses());
   ASSERT_OUT_HAS("Deployment cancelled.");
   EQ(0, fireCount());
@@ -295,7 +332,7 @@ void test_g_stop_while_raising_the_puck_aborts(void) {
 
 void test_g_stop_during_the_pre_fire_lower_aborts(void) {
   t::typeAfterPulses(
-    Config::LEAD_STEP_PIN, t::kLevelOneSteps + t::kPuckHeightSteps + 100, "x"
+    Config::LEAD_STEP_PIN, t::kLevelOneSteps + kDeploymentOffsetSteps + t::kPuckHeightSteps + 100, "x"
   );
   t::run("G");
   ASSERT_OUT_HAS("Unable to position the puck for firing; full deployment stopped.");
@@ -307,7 +344,7 @@ void test_g_stop_during_the_post_fire_raise_aborts_after_firing(void) {
   Serial.feed("\n");
   t::typeAfterPulses(
     Config::LEAD_STEP_PIN,
-    t::kLevelOneSteps + t::kPuckHeightSteps + t::kThreeMmSteps + 100,
+    t::kLevelOneSteps + kDeploymentOffsetSteps + t::kPuckHeightSteps + t::kThreeMmSteps + 100,
     "x"
   );
   t::run("G");
@@ -330,6 +367,7 @@ void test_g_fires_every_puck_when_all_are_present(void) {
   Serial.feed(std::string(17, '\n'));
   t::run("G");
   EQ(17, fireCount());
+  expectFiringHeights(1);
   ASSERT_OUT_LACKS("not configured; puck presence");
   ASSERT_OUT_LACKS("skipping deployment");
 }

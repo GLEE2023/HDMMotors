@@ -417,7 +417,8 @@ void executeFMS()
 }
 
 // G command. From the bottom, raise to puck level 1, then per puck 1..PUCK_COUNT:
-//   raise +PUCK_HEIGHT_MM -> arm servos -> check puck latch -> lower PRE_FIRE mm
+//   raise +PUCK_HEIGHT_MM (plus the deployment offset on the first puck)
+//   -> arm servos -> check puck latch -> lower PRE_FIRE mm
 //   -> wait for operator confirmation -> fire -> raise POST_FIRE mm.
 // The next puck's +PUCK_HEIGHT_MM raise starts from the realigned position.
 // A failed lead move stops the whole run (servos reset in most cases).
@@ -456,7 +457,9 @@ bool deployPuck(uint8_t puckNumber)
     servoController.reset();
     return false;
   }
-  if (!axes.moveLeadRelativeMillimeters(Config::PUCK_HEIGHT_MM)) {
+  const float raiseMillimeters = Config::PUCK_HEIGHT_MM +
+    (puckNumber == 1 ? Config::FULL_DEPLOYMENT_HEIGHT_OFFSET_MM : 0.0f);
+  if (!axes.moveLeadRelativeMillimeters(raiseMillimeters)) {
     Serial.println(F("Unable to raise the puck to firing height; full deployment stopped."));
     servoController.reset();
     return false;

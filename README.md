@@ -143,6 +143,7 @@ The active values from [include/Config.h](include/Config.h) are listed below.
 | Configured travel height | 256 mm |
 | Puck levels | 17 |
 | First-level offset from bottom | 13 mm |
+| G/Q deployment-height offset | 2.5 mm |
 | Calibration | 100.8 steps/mm |
 | Driver current | 1400 mA |
 | Microsteps | 4 |
@@ -182,7 +183,7 @@ A few behaviors are worth knowing before using the machine:
 - The servo motion is smooth by default, and the fire action briefly holds the fire position before returning to rest.
 - The firmware assumes the system is already roughly homed at startup: the lead screw starts at the bottom, the barrel at index 0, and yaw at 0 degrees.
 
-The full deployment command starts from the bottom and raises to puck level 1, then for each puck raises one puck height (`PUCK_HEIGHT_MM`) into the deployment position, arms both servos, lowers 3 mm, waits for Enter, fires, then raises 3 mm to realign. The next puck's raise starts from that realigned position, repeating until `PUCK_COUNT` pucks have been deployed (the last puck is fired at 251 mm of the 256 mm travel). After the final cycle, the elevator returns to the bottom using the limit switch when configured, or the software-tracked reference otherwise.
+The full deployment command starts from the bottom and raises to puck level 1, then raises one puck height (`PUCK_HEIGHT_MM`) into the deployment position. The first deployment raise includes an additional 2.5 mm calibration offset, retained for subsequent pucks; manual puck-level commands are unchanged. For each puck it arms both servos, lowers 3 mm, waits for Enter, fires, then raises 3 mm to realign. The next puck's raise starts from that realigned position, repeating until `PUCK_COUNT` pucks have been deployed (the final pre-lowering height is approximately 253.5 mm of the 256 mm tracked travel). After the final cycle, the elevator returns to the bottom using the limit switch when configured, or the software-tracked reference otherwise. The 2.5 mm offset is an initial estimate and should be verified on the mechanism before operating a full stack.
 
 `Q` first returns the elevator to the bottom and runs the same deployment as `G` on the currently aligned barrel. It then advances and deploys each remaining barrel, stopping after the sixth without indexing again. Starting at index 0, the order is 0 through 5. A cancelled or interrupted deployment, failed barrel movement, or interrupted return to bottom stops the entire sequence.
 
