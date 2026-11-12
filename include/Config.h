@@ -83,7 +83,7 @@ namespace Config {
   constexpr float BARREL_HEIGHT_MM = 256.0f;
   constexpr uint8_t PUCK_COUNT = 17;
   constexpr float FIRST_PUCK_EXTRA_OFFSET_MM = 13.0f;
-  constexpr float FULL_DEPLOYMENT_HEIGHT_OFFSET_MM = 3.5f;
+  constexpr float FULL_DEPLOYMENT_HEIGHT_OFFSET_MM = 2.5f;
   constexpr float FULL_DEPLOYMENT_PRE_FIRE_LOWER_MM = 3.0f;
   constexpr float FULL_DEPLOYMENT_POST_FIRE_RAISE_MM = 3.0f;
 
