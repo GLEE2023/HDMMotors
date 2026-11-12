@@ -32,11 +32,11 @@ class SerialLink(QObject):
         return True
     def _read(self):
         self.buffer.extend(bytes(self.port.readAll()))
-        if len(self.buffer)>8192:
-            self.buffer.clear();self.fault.emit('Serial input line too long');return
         while b'\n' in self.buffer:
             raw,_,rest=self.buffer.partition(b'\n');self.buffer=bytearray(rest)
             self.line_received.emit(raw.rstrip(b'\r').decode('utf-8',errors='replace'))
+        if len(self.buffer)>8192:
+            self.buffer.clear();self.fault.emit('Serial input line too long')
     def _error(self,e):
         if e==QSerialPort.NoError:return
         msg=self.port.errorString()

@@ -90,10 +90,10 @@ class NanoAsciiProtocol:
         if m:return replace(old,yaw_degrees=float(m[1]),updated=True)
         m=re.match(r'^Yaw allowed range:\s*([-+\d.]+)\s*to\s*\+?([-+\d.]+)\s*degrees',s,re.I)
         if m:return replace(old,yaw_min=float(m[1]),yaw_max=float(m[2]),updated=True)
-        if s.lower().startswith('bottom') and 'switch' in s.lower():
-            return replace(old,bottom_switch=s.split(':',1)[-1].strip(),updated=True)
-        if 'puck' in s.lower() and 'switch' in s.lower():
-            return replace(old,puck_switch=s.split(':',1)[-1].strip(),updated=True)
+        m=re.match(r'^(?:Elevator\s+)?Bottom\s+Switch:\s*(.+)$',s,re.I)
+        if m:return replace(old,bottom_switch=m[1].strip(),updated=True)
+        m=re.match(r'^Puck(?:\s+in\s+Barrel)?\s+Switch:\s*(.+)$',s,re.I)
+        if m:return replace(old,puck_switch=m[1].strip(),updated=True)
         return old
 
 class SequencePhase(str,Enum):

@@ -30,6 +30,14 @@ def test_status():
         s=p.parse_status_line(s,line)
     assert s.lead_mm==28.333 and s.puck_level==2 and s.barrel_index==5
     assert s.yaw_degrees==-12.46534
+def test_switch_status_lines():
+    p=NanoAsciiProtocol();s=MotorStatus()
+    s=p.parse_status_line(s,'Puck in Barrel Switch: TRIGGERED')
+    s=p.parse_status_line(s,'Elevator Bottom Switch: OPEN')
+    assert s.puck_switch=='TRIGGERED' and s.bottom_switch=='OPEN'
+    for line in ['Puck switch is not configured; puck presence will not be verified.',
+                 'Bottom microswitch tripped; lead screw stopped.']:
+        assert p.parse_status_line(s,line)==s
 def test_fire_confirmation_state():
     t=SequenceTracker();t.start(Action.DEPLOY_FMS)
     assert t.observe('Press Enter to fire, or type N to cancel.')==SequencePhase.AWAIT_FIRE
