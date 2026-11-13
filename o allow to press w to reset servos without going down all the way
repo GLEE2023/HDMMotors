@@ -1,0 +1,275 @@
+[33mcommit 1950e814f5ff6bb9bd95ec6ecf06d8a5917f9eda[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mgui[m[33m, [m[1;31morigin/gui[m[33m)[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Nov 12 16:59:09 2026 -0700
+
+    config changes
+
+[33mcommit 03ae37f2e11d0d130ee4de354e40a09ed66ba91b[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Nov 12 16:35:29 2026 -0700
+
+    bug fixes and improvements to gui
+
+[33mcommit 293c82fb92fb3ec41535bd2102bd0fe624515c08[m
+Author: Brooke Andrie <156472578+Boorkee@users.noreply.github.com>
+Date:   Thu Nov 12 16:24:10 2026 -0700
+
+    Add native GLEE Motor Studio GUI with Nano serial adapter and STM32 boundary
+
+[33mcommit 08a47513d214177a4148037ab11386442604800d[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Nov 12 15:30:41 2026 -0700
+
+    slight fixes
+
+[33mcommit b22615ac2201dc0bb768e601dfd7754a3e22144b[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Nov 10 17:08:06 2026 -0700
+
+    FMS function implementation and reorganization
+
+[33mcommit c1a1aa2e700388d61c0f23f96040416334d95df9[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 27 15:43:14 2026 -0600
+
+    test bug fixes
+
+[33mcommit 80ddc3d73e5431373049489dd6cb93f6a4197145[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 27 15:35:48 2026 -0600
+
+    tests require gcc
+
+[33mcommit ad5111339b857a9d0bcfe2d357ce72631f24b438[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 27 15:03:55 2026 -0600
+
+    implemented unit tests
+
+[33mcommit 8003ebe7800f4d903f1dd897b9bdb10e836f0716[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 27 14:35:17 2026 -0600
+
+    bug fixes, deleted old code
+
+[33mcommit a1d18588a2df4e4d37480c5487328d241923333f[m[33m ([m[1;31morigin/motor-control[m[33m, [m[1;32mmotor-control[m[33m)[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 20 16:19:04 2026 -0600
+
+    microswitch working
+
+[33mcommit 2963a1aaa7a3c8fbb05aa8fd19c83ad879389ced[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 20 15:29:36 2026 -0600
+
+    config updates
+
+[33mcommit a60e3a2dab96960120255a40bb74ef51ad24b3d8[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Oct 15 15:31:08 2026 -0600
+
+    switch operation changes
+
+[33mcommit 9ff6c5870f28cc87b904648ce37a1f0b1d631638[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Oct 15 14:40:33 2026 -0600
+
+    new sensors class for solenoid + switches
+
+[33mcommit d0402db1fe1e85daf3f69ed8e05bbefc80ad5295[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Oct 15 11:06:27 2026 -0600
+
+    limit switches integrated
+
+[33mcommit ab8429aebbf198c044eb9cda222e8d3666666135[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Oct 15 10:56:30 2026 -0600
+
+    config changes
+
+[33mcommit 1790841546b4a7a85b556e6f1dd414aeae56e082[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 13 16:37:49 2026 -0600
+
+    lead screw puck height optimization
+
+[33mcommit 2c1cb2e39fa9126e9f0622f1f13067ab779ad392[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 13 16:11:04 2026 -0600
+
+    full fms function changes
+
+[33mcommit 5704a3ad1a802602d14d5b4ac76ed459f0bf5a46[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 13 15:57:54 2026 -0600
+
+    config optimizations
+
+[33mcommit 0d55f1a69bc1c688a63707ff408e90ea0860cd93[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 13 01:20:41 2026 -0600
+
+    first iteration of FMS Function
+
+[33mcommit 901fc08caf9fd69a8667ad665cd5bcf0e930f9b6[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Mon Oct 12 22:31:19 2026 -0600
+
+    settings.json changes
+
+[33mcommit ddae5566d6dee4be2c554df34cf3c7257d0807e7[m
+Merge: 27671e0 60b8a17
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Wed Oct 7 01:01:37 2026 -0600
+
+    Merge branch 'main' of github.com:GLEE2023/HDMMotors
+
+[33mcommit 27671e0055069d20f411a5be2663476f383275d3[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Wed Oct 7 01:01:26 2026 -0600
+
+    fixes
+
+[33mcommit 60b8a17ca60e6bf0abf47086f4e5138dc264acda[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Wed Oct 7 00:50:16 2026 -0600
+
+    README update pt2
+
+[33mcommit 7e0321985cd20c4b97db8136fc2560c048716058[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Wed Oct 7 00:49:57 2026 -0600
+
+    README updates
+
+[33mcommit 0d10a3043192960a7defa3b71b7efcea52de2cec[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Oct 6 16:35:10 2026 -0600
+
+    Config updates for new wiring
+
+[33mcommit dbf5e967aff7641b6169607fbbd1eb80baa36f96[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Fri Oct 2 16:46:14 2026 -0600
+
+    revert to old drivers pt2
+    
+    This reverts commit fffcf3ca14dfe8ab610470839e534bc762a93eec.
+
+[33mcommit 5324ada48ee3de2f1b94b6eec0df8913aad7eaa2[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Fri Oct 2 16:45:48 2026 -0600
+
+    revert to old drivers
+    
+    This reverts commit 9b9bb3502c1d8d21675ec17fc40e9b5d37e1a82c.
+
+[33mcommit a24a4e58ca50495eb053e512f68519602a5f6011[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Fri Oct 2 16:43:57 2026 -0600
+
+    revert setup
+
+[33mcommit 9b9bb3502c1d8d21675ec17fc40e9b5d37e1a82c[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Fri Sep 25 18:17:02 2026 -0600
+
+    new driver updates (probably will rollback)
+
+[33mcommit fffcf3ca14dfe8ab610470839e534bc762a93eec[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Fri Sep 18 14:17:26 2026 -0600
+
+    new driver changes
+
+[33mcommit b452200ec4b84734e8bf3b999f7fe53ef51d9df9[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Thu Sep 10 15:26:29 2026 -0600
+
+    updates Fall start
+
+[33mcommit 4d7f7eff3220bae58395448d8e1268c3b4687e32[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Wed Jul 29 10:56:29 2026 -0600
+
+    yaw and barrel updates
+
+[33mcommit 158ec6c73d7bbbc4a16a14ecb1d31237f55e59bc[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Jul 28 10:27:47 2026 -0600
+
+    servo redundancy removed
+
+[33mcommit d62317db35b24186961c7a8f7685525b19f5af05[m
+Merge: f3710a2 55b6173
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Jul 28 10:25:11 2026 -0600
+
+    Merge branch 'main' of https://github.com/GLEE2023/HDMMotors
+
+[33mcommit f3710a23705e66211e9199cfe14ba928370225c5[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Jul 28 10:23:15 2026 -0600
+
+    fixes from merge
+
+[33mcommit 55b61736be7c8ae2efc67bcf3f9fc28259ff0cbd[m
+Author: ashlyxf <sonuxf002@gmail.com>
+Date:   Tue Jul 28 21:19:39 2026 +0530
+
+    modified
+
+[33mcommit de796ea58fd6f64911941cc73789da5e13b7eac5[m
+Merge: 34141b3 82b589c
+Author: ashlyxf <sonuxf002@gmail.com>
+Date:   Tue Jul 28 21:17:20 2026 +0530
+
+    Merge branch 'main' of https://github.com/GLEE2023/HDMMotors
+
+[33mcommit 34141b3e6878ab70670aa2f034e2bf9bbac2783b[m
+Author: ashlyxf <sonuxf002@gmail.com>
+Date:   Tue Jul 28 21:16:53 2026 +0530
+
+    new
+
+[33mcommit 82b589cf43777cd86835159b5fddad3cf5c0f5dc[m
+Merge: 9122e2d 232461e
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Jul 28 09:45:45 2026 -0600
+
+    Merge branch 'main' of https://github.com/GLEE2023/HDMMotors
+
+[33mcommit 9122e2dcac4e8ebc1a0fbde831e58b21f6cbfb6b[m
+Merge: 9e993b6 5d2a4e7
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Jul 28 09:45:33 2026 -0600
+
+    Merge branch 'main' of https://github.com/GLEE2023/HDMMotors
+
+[33mcommit 232461eb1213f389100a183ea1463c3266670ef8[m
+Author: ashlyxf <sonuxf002@gmail.com>
+Date:   Tue Jul 28 21:15:16 2026 +0530
+
+    yeahh
+
+[33mcommit 9e993b693efdfdebc6e9c6a85e28a89903f1cb03[m
+Author: Boorkee <brookemadelinea@gmail.com>
+Date:   Tue Jul 28 09:44:46 2026 -0600
+
+    config changes
+
+[33mcommit 5d2a4e79699ded38b5a811d9cbc5a210a4600bdd[m
+Merge: 3653dfe a401c66
+Author: ashlyxf <sonuxf002@gmail.com>
+Date:   Tue Jul 28 21:11:13 2026 +0530
+
+    Merge branch 'main' of https://github.com/GLEE2023/HDMMotors
+
+[33mcommit 3653dfe1f528a2a2af5342faec79166afe742817[m
+Author: ashlyxf <sonuxf002@gmail.com>
+Date:   Tue Jul 28 21:06:04 2026 +0530
+
+    Servo tuning and TMC2209 updates
+
+[33mcommit a401c667792231b0683ed77b
