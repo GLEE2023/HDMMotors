@@ -1,6 +1,6 @@
 """Native Windows Qt controls for GLEE HDMMotors."""
 from __future__ import annotations
-import datetime, sys
+import datetime, sys, ctypes
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QFrame,QLabel,QPushButton,
@@ -26,7 +26,7 @@ def button(text,callback,kind=None):
 
 def panel(title,eyebrow):
     p=QFrame();p.setObjectName('panel')
-    l=QVBoxLayout(p);l.setContentsMargins(22,19,22,20);l.setSpacing(12)
+    l=QVBoxLayout(p);l.setContentsMargins(18,14,18,15);l.setSpacing(9)
     l.addWidget(label(eyebrow.upper(),'eyebrow'))
     l.addWidget(label(title,'subheading'))
     return p,l
@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('GLEE · HDM Motor Studio')
-        self.resize(1300,850);self.setMinimumSize(980,680)
+        self.resize(1320,820);self.setMinimumSize(1024,680)
         self.setStyleSheet(STYLE)
         self.ctrl=Coordinator()
         self.link=SerialLink(self)
@@ -43,30 +43,32 @@ class MainWindow(QMainWindow):
         self.link.connection_changed.connect(self.on_connection)
         self.link.fault.connect(self.on_fault)
         self.motion_buttons=[];self.deployment_buttons=[]
+        self.status_request_pending=False
+        self.pending_motion=False
         self.make_ui();self.refresh_ports()
         QShortcut(QKeySequence('Escape'),self,activated=self.stop_request)
         self.refresh_ui()
         self.log_message('SYSTEM','Ready. Select the Nano COM port and connect.')
 
     def make_ui(self):
-        base=QWidget();self.setCentralWidget(base)
+        base=QWidget();base.setObjectName('root');self.setCentralWidget(base)
         layout=QVBoxLayout(base);layout.setContentsMargins(0,0,0,0);layout.setSpacing(0)
         top=QFrame();top.setObjectName('strip')
-        header=QHBoxLayout(top);header.setContentsMargins(21,13,21,13);header.setSpacing(13)
+        header=QHBoxLayout(top);header.setContentsMargins(24,10,24,10);header.setSpacing(12)
         header.addWidget(label('GLEE','brand'))
-        header.addWidget(label(' / HDM MOTOR STUDIO','hint'));header.addStretch()
+        header.addWidget(label('HDM  /  MOTOR CONTROL','appName'));header.addStretch()
         self.connection_label=label('● OFFLINE','disconnected');header.addWidget(self.connection_label)
         self.port=QComboBox();self.port.setFixedWidth(195);header.addWidget(self.port)
-        header.addWidget(button('↻',self.refresh_ports))
+        header.addWidget(button('Refresh',self.refresh_ports))
         self.connect_button=button('Connect',self.toggle_connection,'primary')
         header.addWidget(self.connect_button)
-        self.stop_button=button('STOP REQUEST',self.stop_request,'danger')
+        self.stop_button=button('STOP',self.stop_request,'danger')
         header.addWidget(self.stop_button);layout.addWidget(top)
         body=QHBoxLayout();body.setContentsMargins(0,0,0,0);body.setSpacing(0)
         layout.addLayout(body,1)
-        rail=QFrame();rail.setObjectName('rail');rail.setFixedWidth(210)
-        nav=QVBoxLayout(rail);nav.setContentsMargins(14,22,14,18);nav.setSpacing(10)
-        nav.addWidget(label('OPERATIONS','eyebrow'))
+        rail=QFrame();rail.setObjectName('rail');rail.setFixedWidth(192)
+        nav=QVBoxLayout(rail);nav.setContentsMargins(12,20,12,16);nav.setSpacing(5)
+        nav.addWidget(label('WORKSPACE','eyebrow'))
         self.nav_buttons=[]
         for i,name in enumerate(('Overview','Manual control','Deployment','Diagnostics')):
             b=button(name,lambda idx=i:self.switch_page(idx),'nav')
@@ -75,17 +77,17 @@ class MainWindow(QMainWindow):
         nav.addWidget(label('HARDWARE SAFETY','eyebrow'))
         nav.addWidget(label('Software stop is not a physical emergency stop. Keep a power disconnect accessible.','hint',True))
         body.addWidget(rail)
-        right=QWidget();rv=QVBoxLayout(right)
-        rv.setContentsMargins(24,22,24,18);rv.setSpacing(13)
+        right=QWidget();right.setObjectName('contentRoot');rv=QVBoxLayout(right)
+        rv.setContentsMargins(24,20,24,16);rv.setSpacing(10)
         self.pages=QStackedWidget()
         self.pages.addWidget(self.overview_page())
         self.pages.addWidget(self.manual_page())
         self.pages.addWidget(self.deployment_page())
         self.pages.addWidget(self.diagnostics_page())
         rv.addWidget(self.pages,4)
-        rv.addWidget(label('ACTIVITY & DEVICE OUTPUT','eyebrow'))
+        rv.addWidget(label('SERIAL MONITOR','eyebrow'))
         self.log=QPlainTextEdit();self.log.setReadOnly(True)
-        self.log.setMinimumHeight(120);self.log.setMaximumHeight(180)
+        self.log.setMinimumHeight(105);self.log.setMaximumHeight(135)
         self.log.document().setMaximumBlockCount(600)
         rv.addWidget(self.log,1);body.addWidget(right,1)
         self.switch_page(0)
@@ -93,29 +95,29 @@ class MainWindow(QMainWindow):
     def new_page(self,title,subtitle):
         page=QScrollArea();page.setWidgetResizable(True)
         inner=QWidget();v=QVBoxLayout(inner)
-        v.setContentsMargins(1,0,7,17);v.setSpacing(17)
+        v.setContentsMargins(1,0,8,12);v.setSpacing(12)
         v.addWidget(label(title,'heading'));v.addWidget(label(subtitle,'hint',True))
         page.setWidget(inner);return page,v
 
     def overview_page(self):
-        page,v=self.new_page('Mission overview','Live tracked values from the controller, not inferred from button presses.')
-        grid=QGridLayout();grid.setSpacing(14)
+        page,v=self.new_page('System overview','Controller readings, hardware references and device readiness')
+        grid=QGridLayout();grid.setSpacing(12)
         self.metrics=[]
         for i,(title,unit) in enumerate((('LEAD SCREW','Tracked position'),('BARREL','Chamber index'),('YAW ANGLE','Tracked degrees'))):
-            p,x=panel(title,'axis telemetry')
+            p,x=panel(title,'TRACKED AXIS')
             number=label('—','metric');x.addWidget(number)
             x.addWidget(label(unit,'hint'))
             grid.addWidget(p,0,i);self.metrics.append(number)
         v.addLayout(grid)
-        p,x=panel('System readiness','live status')
+        p,x=panel('Hardware status','SYSTEM')
         self.readiness=label('Waiting for firmware status','hint');x.addWidget(self.readiness)
         self.puck_level=label('Puck level: —','hint');x.addWidget(self.puck_level)
         self.switches=label('Switches: not reported','hint');x.addWidget(self.switches)
         x.addWidget(label('Positions may be open-loop estimates; verify actual hardware references.','hint',True))
         v.addWidget(p)
-        p,x=panel('Quick access','next action')
+        p,x=panel('Actions','SHORTCUTS')
         r=QHBoxLayout()
-        self.status_button=button('Refresh status',lambda:self.command(Action.STATUS),'primary');r.addWidget(self.status_button)
+        self.status_button=button('Read status',lambda:self.command(Action.STATUS),'primary');r.addWidget(self.status_button)
         r.addWidget(button('Manual control',lambda:self.switch_page(1)))
         r.addWidget(button('Deployment',lambda:self.switch_page(2)));r.addStretch()
         x.addLayout(r);v.addWidget(p);v.addStretch()
@@ -212,6 +214,16 @@ class MainWindow(QMainWindow):
             b.setProperty('active',i==index)
             b.style().unpolish(b);b.style().polish(b)
 
+    def showEvent(self,event):
+        super().showEvent(event)
+        if sys.platform=='win32':
+            try:
+                value=ctypes.c_int(1)
+                ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    int(self.winId()),20,ctypes.byref(value),ctypes.sizeof(value))
+            except (OSError,AttributeError,ValueError):
+                pass
+
     def refresh_ports(self):
         previous=self.port.currentData()
         self.port.clear()
@@ -235,6 +247,7 @@ class MainWindow(QMainWindow):
 
     def on_connection(self,connected,name):
         self.ctrl.set_connected(connected)
+        self.status_request_pending=False;self.pending_motion=False
         self.log_message('SYSTEM','Connected to '+name if connected else 'Disconnected. Cached positions cleared.')
         self.refresh_ui()
 
@@ -245,34 +258,79 @@ class MainWindow(QMainWindow):
         if not line.strip():return
         self.log_message('DEVICE',line)
         event=self.ctrl.observe(line)
+        if self.pending_motion and not self.status_request_pending and not self.ctrl.stop_latched:
+            text=line.strip().lower()
+            # Nano commands block the main serial loop. Do not queue C during
+            # motion: it can prevent the stepper's x/X interrupt from being read.
+            finished=(
+                text.startswith('lead position:') or
+                text.startswith('lead puck level:') or
+                text.startswith('barrel index movement complete') or
+                text.startswith('barrel movement stopped') or
+                text.startswith('yaw movement complete') or
+                text.startswith('yaw movement stopped') or
+                text.startswith('both servos ') or
+                text.startswith('current yaw position set') or
+                text.startswith('all configured pucks') or
+                text.startswith('lead screw is already') or
+                text.startswith('lead screw reached the physical bottom') or
+                text.startswith('bottom switch did not trip') or
+                text.startswith('lead screw stopped early') or
+                text.startswith('lead-screw movement stopped') or
+                text.startswith('lead-screw movement ended') or
+                text.startswith('unable to') or
+                text.startswith('barrel index must be') or
+                text.startswith('invalid barrel calibration') or
+                text.startswith('configured puck stack')
+            )
+            if finished:
+                self.request_status('status-after-motion')
+        if self.status_request_pending and line.strip().lower().startswith('barrel solenoid:'):
+            self.status_request_pending=False
+            if not self.ctrl.stop_latched and not self.ctrl.tracker.mode:
+                self.ctrl.ready_for_motion=True
+                self.pending_motion=False
         if event==SequencePhase.FINISHED:
             self.ctrl.ready_for_motion=False
             self.log_message('SYSTEM','Terminal deployment event. Requesting fresh status.')
-            self.send(self.ctrl.protocol.encode(Action.STATUS),'status-after-sequence')
+            self.request_status('status-after-sequence')
         self.refresh_ui()
 
     def log_message(self,kind,text):
-        self.log.appendPlainText(datetime.datetime.now().strftime('%H:%M:%S')+'  ['+kind+']  '+text)
+        self.log.appendPlainText(datetime.datetime.now().strftime('%H:%M:%S')+'   '+kind.ljust(7)+' '+text)
 
     def send(self,data,desc):
         if not self.link.send(data):return False
         self.log_message('TX',desc+'  '+repr(data));return True
 
+    def request_status(self,desc='status'):
+        if not self.link.connected or self.ctrl.tracker.mode:
+            return False
+        if self.send(self.ctrl.protocol.encode(Action.STATUS),desc):
+            self.status_request_pending=True
+            return True
+        return False
+
     def command(self,action):
         try:data=self.ctrl.prepare(action)
         except (RuntimeError,ValueError) as exc:self.notice(str(exc));return
+        if action==Action.STATUS:
+            self.request_status('status')
+            self.refresh_ui()
+            return
         if not self.send(data,action.value):
             if action in (Action.DEPLOY_BARREL,Action.DEPLOY_FMS):self.ctrl.tracker.mark_uncertain()
             self.refresh_ui();return
-        if action not in (Action.STATUS,Action.HELP,Action.TEST_SPI,Action.DEPLOY_BARREL,Action.DEPLOY_FMS):
-            self.send(self.ctrl.protocol.encode(Action.STATUS),'status-after-motion')
+        if action not in (Action.HELP,Action.TEST_SPI,Action.DEPLOY_BARREL,Action.DEPLOY_FMS):
+            self.ctrl.ready_for_motion=False;self.pending_motion=True
         self.refresh_ui()
 
     def move_barrel(self):
         try:data=self.ctrl.prepare_barrel_index(self.barrel_index.value())
         except (RuntimeError,ValueError) as exc:self.notice(str(exc));return
         if self.send(data,'barrel index'):
-            self.send(self.ctrl.protocol.encode(Action.STATUS),'status-after-motion')
+            self.ctrl.ready_for_motion=False;self.pending_motion=True
+        self.refresh_ui()
 
     def move_yaw(self):self.send_yaw(self.yaw_target.value())
     def adjust_prompt_yaw(self):self.send_yaw(self.prompt_yaw.value(),during_prompt=True)
@@ -281,7 +339,8 @@ class MainWindow(QMainWindow):
         except (RuntimeError,ValueError) as exc:self.notice(str(exc));return
         if self.send(data,'yaw relative' if relative else 'yaw absolute'):
             if during_prompt:self.ctrl.tracker.yaw_adjustment_sent()
-            else:self.send(self.ctrl.protocol.encode(Action.STATUS),'status-after-motion')
+            else:
+                self.ctrl.ready_for_motion=False;self.pending_motion=True
         else:
             if during_prompt:self.ctrl.tracker.mark_uncertain()
         self.refresh_ui()
@@ -359,8 +418,8 @@ class MainWindow(QMainWindow):
         self.stop_button.setEnabled(connected and not self.ctrl.stop_latched)
         busy=bool(self.ctrl.tracker.mode)
         ready=connected and self.ctrl.ready_for_motion and not busy and not self.ctrl.stop_latched
-        for b in self.motion_buttons+self.deployment_buttons:b.setEnabled(ready)
-        for b in [self.status_button]+self.diag_buttons:b.setEnabled(connected and not busy)
+        for b in self.motion_buttons+self.deployment_buttons:b.setEnabled(ready and not self.pending_motion)
+        for b in [self.status_button]+self.diag_buttons:b.setEnabled(connected and not busy and not self.pending_motion)
         prompt=connected and self.ctrl.tracker.phase==SequencePhase.AWAIT_FIRE and not self.ctrl.stop_latched
         for b in (self.fire_button,self.cancel_button,self.prompt_yaw,self.prompt_yaw_button):
             b.setEnabled(prompt)
@@ -371,6 +430,7 @@ class MainWindow(QMainWindow):
         self.metrics[2].setText('—' if s.yaw_degrees is None else f'{s.yaw_degrees:+.2f}°')
         self.readiness.setText('Stop requested — verify the mechanism before reconnecting' if self.ctrl.stop_latched else
            'Deployment in progress — normal commands locked' if busy else
+           'Waiting for controller response' if self.pending_motion else
            'Connected · status received · controls enabled' if ready else
            'Connected · awaiting status' if connected else 'Offline')
         self.puck_level.setText('Puck level: '+('unknown' if s.puck_level_unknown else '—' if s.puck_level is None else str(s.puck_level)+' / '+str(s.puck_count or 17)))
