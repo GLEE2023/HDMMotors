@@ -187,7 +187,7 @@ The full deployment command starts from the bottom and raises to puck level 1, t
 
 `Q` first returns the elevator to the bottom and runs the same deployment as `G` on the currently aligned barrel. It then advances and deploys each remaining barrel, stopping after the sixth without indexing again. Starting at index 0, the order is 0 through 5. A cancelled or interrupted deployment, failed barrel movement, or interrupted return to bottom stops the entire sequence.
 
-At each `G` or `Q` firing prompt, Enter fires and `N` cancels. A bare `Y` also confirms for compatibility. Instead, send `Y12.5`, `R0.25`, or `Z` to adjust or zero yaw; the prompt returns without firing. Invalid yaw input and overlong lines are rejected without firing. Other non-yaw input cancels. Yaw and barrel motors move together as described above; during a stepper move, `x` stops that move.
+At each `G` or `Q` firing prompt, Enter fires and `N` cancels. A bare `Y` also confirms for compatibility. Send `Y12.5`, `R0.25`, or `Z` to adjust or zero yaw; `+` and `-` move the lead screw by 1 mm and update its tracked position; `w` resets the servos and `e` arms them again. These adjustments return to the prompt without firing or homing the lead screw. Invalid yaw input and overlong lines are rejected without firing. Other unrecognized input cancels. Yaw and barrel motors move together as described above; during a stepper move, `x` stops that move.
 
 ## Serial Command Reference
 

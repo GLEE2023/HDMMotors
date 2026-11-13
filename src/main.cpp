@@ -32,6 +32,7 @@ void executeFMS();
 bool executeFullBarrelDeployment();
 bool deployPuck(uint8_t puckNumber);
 bool waitForFireConfirmation();
+void printFireConfirmationPrompt();
 void executeYawCommand(char commandLetter, const char *valueText);
 bool returnLeadToBottom();
 
@@ -504,8 +505,7 @@ bool waitForFireConfirmation()
   uint8_t length = 0;
   bool overflowed = false;
   bool invalid = false;
-  Serial.println(F("Press Enter to fire, or type N to cancel."));
-  Serial.println(F("Type Y<angle>, R<angle>, or Z to adjust yaw before firing."));
+  printFireConfirmationPrompt();
 
   while (true)
   {
@@ -555,24 +555,58 @@ bool waitForFireConfirmation()
       if (*text == '\0')
         return true;
 
+      const char commandCharacter = *text;
       const char letter = static_cast<char>(toupper(static_cast<unsigned char>(*text)));
       // Preserve the existing bare Y confirmation, but never treat a malformed
       // yaw command as permission to fire.
       if (letter == 'Y' && onlyBlanksRemain(text + 1))
         return true;
-      if (letter != 'Y' && letter != 'R' && letter != 'Z')
+      if ((commandCharacter == '+' || commandCharacter == '-') &&
+          onlyBlanksRemain(text + 1))
+      {
+        axes.moveLeadRelativeMillimeters(commandCharacter == '+' ? 1.0f : -1.0f);
+      }
+      else if (commandCharacter == 'w' && onlyBlanksRemain(text + 1))
+      {
+        servoController.reset();
+        Serial.println(F("Servos reset."));
+      }
+      else if (commandCharacter == 'e' && onlyBlanksRemain(text + 1))
+      {
+        servoController.arm();
+        Serial.println(F("Servos armed."));
+      }
+      else if (letter == 'N' && onlyBlanksRemain(text + 1))
+      {
         return false;
-      if (letter == 'Z' && !onlyBlanksRemain(text + 1))
+      }
+      else if (letter != 'Y' && letter != 'R' && letter != 'Z')
+      {
+        return false;
+      }
+      else if (letter == 'Z' && !onlyBlanksRemain(text + 1))
+      {
         Serial.println(F("Invalid yaw zero command. Use Z."));
+      }
       else
+      {
         executeYawCommand(letter, text + 1);
+      }
     }
 
     length = 0;
     overflowed = false;
     invalid = false;
-    Serial.println(F("Press Enter to fire, or type N to cancel."));
+    printFireConfirmationPrompt();
   }
+}
+
+// Prints the available actions while preserving the active firing prompt.
+void printFireConfirmationPrompt()
+{
+  Serial.println(F("Press Enter to fire, or type N to cancel."));
+  Serial.println(F("Type Y<angle>, R<angle>, or Z to adjust yaw."));
+  Serial.println(F("Type + or - to adjust lead by 1 mm; w resets servos; e arms them."));
 }
 
 // Handles yaw commands in both the normal command parser and the fire prompt.

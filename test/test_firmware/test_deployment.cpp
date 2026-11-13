@@ -87,6 +87,19 @@ void test_yaw_commands_return_to_confirmation(void) {
   EQ(0, fireCount());
 }
 
+void test_lead_and_servo_adjustments_return_to_confirmation(void) {
+  servoController.arm();
+  Serial.feed("+\n-\n+\nw\ne\n\n");
+  TEST_ASSERT_TRUE(waitForFireConfirmation());
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 1.0f, axes.getLeadPositionMillimeters());
+  EQ(3 * t::kOneMmSteps, hw::pulseCount(Config::LEAD_STEP_PIN));
+  EQ(Config::LEFT_SERVO_ARM, hw::lastServoAngle(Config::LEFT_SERVO_PIN));
+  EQ(Config::RIGHT_SERVO_ARM, hw::lastServoAngle(Config::RIGHT_SERVO_PIN));
+  TEST_ASSERT_TRUE(hw::servoWrites(Config::LEFT_SERVO_PIN, Config::LEFT_SERVO_REST) > 0);
+  EQ(0, fireCount());
+  EQ(6, t::countOf("Press Enter to fire"));
+}
+
 void test_invalid_and_oversized_yaw_do_not_fire(void) {
   Serial.feed("Yno\nR\nZbad\n" + std::string(40, 'Y') + "\nn\n");
   TEST_ASSERT_FALSE(waitForFireConfirmation());
@@ -417,6 +430,7 @@ void run_deployment_tests() {
   RUN_TEST(test_y_or_lowercase_y_fires);
   RUN_TEST(test_anything_else_cancels);
   RUN_TEST(test_yaw_commands_return_to_confirmation);
+  RUN_TEST(test_lead_and_servo_adjustments_return_to_confirmation);
   RUN_TEST(test_invalid_and_oversized_yaw_do_not_fire);
   RUN_TEST(test_nul_bytes_in_confirmation_do_not_fire_or_move_yaw);
   RUN_TEST(test_deployment_allows_partially_indexed_barrel_for_bench_work);
