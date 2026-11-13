@@ -37,5 +37,6 @@ class Coordinator:
         return self.protocol.interrupt()
     def observe(self,line):
         self.status=self.protocol.parse_status_line(self.status,line)
-        if self.status.updated and not self.stop_latched:self.ready_for_motion=True
+        # A single status field is not a complete response. The transport
+        # enables movement only after the final sensor line arrives.
         return self.tracker.observe(line)
