@@ -1,0 +1,1 @@
+{"$schema":"../gen/schemas/desktop-schema.json","identifier":"main-capability","description":"Restricted local mission console capability","windows":["main"],"permissions":["core:default"]}
