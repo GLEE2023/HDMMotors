@@ -53,7 +53,7 @@ export default function App(){
   <header className="header">
    <div className="identity"><img src="/branding/glee-logo.webp" alt="GLEE lunar expedition emblem"/><div><strong>GLEE</strong><span>LUNAR EXPLORATION · HDM</span></div></div>
    <div className="header-center"><span className="header-line"/> <span className="overline">HDM / FLIGHT OPERATIONS CONSOLE</span> <span className="header-line"/></div>
-   <div className="header-right"><span className="build-label">MISSION CONTROL <b>v0.1</b></span><Clock/><StatusPill state={state}/><button className="icon-button nav-mobile" aria-label="Toggle navigation" onClick={()=>setSidebar(v=>!v)}><Menu size={19}/></button></div>
+   <div className="header-right"><span className="build-label">MISSION CONTROL <b>v0.1</b></span><Clock/><StatusPill state={state}/><button className="btn danger header-stop" title="Request software stop (not a physical emergency stop)" disabled={!state.connected||state.phase==='stop_requested'} onClick={()=>safeSend('stop')}><ShieldAlert size={16}/> STOP REQUEST</button><button className="icon-button nav-mobile" aria-label="Toggle navigation" onClick={()=>setSidebar(v=>!v)}><Menu size={19}/></button></div>
   </header>
   <aside className={'sidebar '+(sidebar?'open':'')}>
    <div className="side-section"><div className="side-caption">WORKSPACE / 01</div><nav>{links.map(([key,label,Icon],i)=><button key={key} className={'nav-link '+(page===key?'active':'')} onClick={()=>{setPage(key);setSidebar(false)}}><Icon size={18} strokeWidth={1.8}/><span>{label}</span><small className="mono">0{i+1}</small></button>)}</nav></div>
@@ -93,7 +93,6 @@ export default function App(){
    {showLog&&<section className="console surface"><div className="console-head"><span><Terminal size={14}/> SYSTEM LOG <small className="mono">LIVE FEED</small></span><div><button onClick={()=>setLogs([])} title="Clear console">CLEAR</button><button onClick={()=>setShowLog(false)} title="Hide console"><X size={15}/></button></div></div><div className="console-body" role="log" aria-live="polite">{logs.slice(-70).map((row,i)=><div className={'log-entry '+row.level} key={i}><span className="mono">{row.time}</span><span className="log-type">{row.level.toUpperCase()}</span><span>{row.message}</span></div>)}</div></section>}
   </main>
   <footer className="footbar"><div><span className="footer-accent"/> GLEE GROUND SYSTEMS <span className="footer-sep">/</span> HDM MOTOR CONTROL</div><div className="footer-right"><span>{state.connected?'LIVE USB CONNECTED':'OFFLINE PREVIEW'}</span><span className="footer-sep">|</span><span>CAD MODEL: REFERENCE</span><span className="footer-sep">|</span><span>VER. 0.1.0</span></div></footer>
-  <div className="floating-stop"><button className="btn danger" disabled={!state.connected||state.phase==='stop_requested'} onClick={()=>safeSend('stop')}><ShieldAlert size={17}/> STOP REQUEST</button></div>
   {!showLog&&<button className="log-reopen" onClick={()=>setShowLog(true)}><Terminal size={15}/> Open log</button>}
   {modal&&<AccessModal title={modal.title} detail={modal.detail} critical={modal.critical} onClose={()=>setModal(null)} onProceed={()=>{const g=modal.go;setModal(null);g()}}/>}
  </div>;

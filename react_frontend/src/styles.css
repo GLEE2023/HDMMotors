@@ -4,3 +4,18 @@
 @media(max-width:1070px){.app-shell{grid-template-columns:74px minmax(0,1fr)}.sidebar{padding-left:8px;padding-right:8px}.side-caption,.side-facts,.side-divider,.side-bottom,.nav-link span,.nav-link small{display:none}.sidebar nav{gap:10px}.nav-link{justify-content:center;padding:13px}.main-content{padding:0 16px 18px}.overview-layout{grid-template-columns:1fr}.overview-right{display:grid;grid-template-columns:repeat(3,1fr)}.viewport{height:460px}.header-right .build-label{display:none}}
 @media(max-width:700px){.app-shell{grid-template-columns:1fr;grid-template-rows:66px minmax(0,1fr) 36px}.header{padding:0 14px}.identity{min-width:0}.identity img{width:43px;height:43px}.identity span,.clock{display:none}.header-right{min-width:0;gap:9px}.nav-mobile{display:inline-flex}.sidebar{position:fixed;z-index:25;left:0;top:66px;bottom:36px;width:220px;transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.side-caption,.side-facts,.side-bottom,.nav-link span,.nav-link small{display:initial}.nav-link{justify-content:start}.main-content{grid-row:2;grid-column:1;max-height:calc(100vh - 102px);padding:0 12px 20px}.overview-right{grid-template-columns:1fr}.metrics-grid{grid-template-columns:1fr}.metric{min-height:110px}.viewport{height:420px}.viewport-meta h2{font-size:15px}.viewport-meta{left:12px;top:14px}.view-status{display:none}.view-actions{bottom:50px;left:10px}.viewport-side-label{display:none}.view-selector{right:10px;top:80px}.viewport-footer{font-size:7px;padding:0 9px}.intro-meta{display:none}.controls-layout,.sequence-layout,.diagnostics-layout{grid-template-columns:1fr}.footbar{padding:0 10px}.footer-right{display:none}.floating-stop{right:12px;bottom:45px}.console{min-height:140px;height:140px}.log-reopen{left:12px;bottom:45px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Layout corrections: keep the log in document flow and let tall pages scroll.
+   The page previously had flex:1 / min-height:0, so its children overflowed
+   into the log panel even though their bounding boxes did not intersect. */
+.app-shell { height: 100vh; min-height: 0; overflow: hidden; }
+.main-content { min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden; }
+.page { flex: 0 0 auto; min-height: auto; width: 100%; }
+.console { flex: 0 0 172px; height: 172px; min-height: 172px; margin-top: 12px; }
+.header-stop { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 10px; padding: 9px 11px; }
+@media (max-width: 700px) {
+  .main-content { max-height: none; }
+  .console { flex-basis: 145px; height: 145px; min-height: 145px; }
+  .header-stop { font-size: 0; padding: 9px; gap: 0; }
+  .header-stop svg { width: 18px; height: 18px; }
+}

@@ -10,6 +10,15 @@ function PhysicalMechanism({exploded,selected,preview}: {exploded:boolean; selec
   const {scene}=useGLTF('/models/glee-mechanism.glb');
   const upper=useRef<THREE.Group>(null);
   const motor=useRef<THREE.Group>(null);
+  // The STEP coordinates are millimeters. Fit the entire mechanism in the
+  // viewport, regardless of its original CAD origin or dimensions.
+  const fit=useMemo(()=>{
+    const bounds=new THREE.Box3().setFromObject(scene);
+    const size=bounds.getSize(new THREE.Vector3());
+    const center=bounds.getCenter(new THREE.Vector3());
+    const maxExtent=Math.max(size.x,size.y,size.z,1);
+    return {center,scale:3.05/maxExtent,explodeDistance:size.y*.12};
+  },[scene]);
   const objects=useMemo(()=>{
     const base:THREE.Object3D[]=[];const top:THREE.Object3D[]=[];
     scene.traverse(obj=>{
@@ -29,13 +38,15 @@ function PhysicalMechanism({exploded,selected,preview}: {exploded:boolean; selec
   useFrame(({clock},delta)=>{
     if(!upper.current || !motor.current)return;
     const t=clock.elapsedTime;
-    upper.current.position.y=THREE.MathUtils.damp(upper.current.position.y, exploded?38:0,4,delta);
+    upper.current.position.y=THREE.MathUtils.damp(upper.current.position.y, exploded?fit.explodeDistance:0,4,delta);
     upper.current.rotation.y=THREE.MathUtils.damp(upper.current.rotation.y,preview?Math.sin(t*.45)*.16:0,2,delta);
   });
-  return <group position={[0,-155,0]} scale={.0085}>
-    <group ref={motor}>{objects.base.map((o,i)=><primitive key={i} object={o} />)}</group>
-    <group ref={upper}>{objects.top.map((o,i)=><primitive key={i} object={o} />)}</group>
-    {selected!=='all' && <mesh position={[0,160,0]}><cylinderGeometry args={[116,116,5,48]}/><meshBasicMaterial color="#2c69ff" transparent opacity={.08} depthWrite={false}/></mesh>}
+  return <group scale={fit.scale}>
+    <group position={[-fit.center.x,-fit.center.y,-fit.center.z]}>
+      <group ref={motor}>{objects.base.map((o,i)=><primitive key={i} object={o} />)}</group>
+      <group ref={upper}>{objects.top.map((o,i)=><primitive key={i} object={o} />)}</group>
+      {selected!=='all' && <mesh position={[fit.center.x,fit.center.y,fit.center.z]}><cylinderGeometry args={[116,116,5,48]}/><meshBasicMaterial color="#2c69ff" transparent opacity={.08} depthWrite={false}/></mesh>}
+    </group>
   </group>;
 }
 function MotionEnvelope({visible}:{visible:boolean}){
