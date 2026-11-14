@@ -64,5 +64,7 @@ for i in range(1,parts.Length()+1):
         explorer.Next();index+=1
 out=Path(__file__).resolve().parents[1]/'public/models/glee-mechanism.glb'
 out.parent.mkdir(parents=True,exist_ok=True)
-out.write_bytes(scene.export(file_type='glb'))
+# glTF does not require NORMAL data, but Three.js PBR shading does.
+# Store surface normals explicitly so every consumer lights the CAD correctly.
+out.write_bytes(scene.export(file_type='glb',include_normals=True))
 print(f'Exported {selected} mechanism solids without enclosure walls to {out}')

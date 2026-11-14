@@ -7,7 +7,7 @@ import { MetalFx } from 'metal-fx';
 import type { RuntimeState } from '../types';
 
 function PhysicalMechanism({exploded,selected,preview}: {exploded:boolean; selected:string; preview:boolean}){
-  const {scene}=useGLTF('/models/glee-mechanism.glb');
+  const {scene}=useGLTF('/models/glee-mechanism.glb?v=2');
   const upper=useRef<THREE.Group>(null);
   const motor=useRef<THREE.Group>(null);
   // The STEP coordinates are millimeters. Fit the entire mechanism in the
@@ -23,16 +23,56 @@ function PhysicalMechanism({exploded,selected,preview}: {exploded:boolean; selec
     const base:THREE.Object3D[]=[];const top:THREE.Object3D[]=[];
     scene.traverse(obj=>{
       if(!(obj instanceof THREE.Mesh))return;
-      const clone=obj.clone();clone.geometry=obj.geometry;
+      const clone=obj.clone();
+      // Some STEP-to-glTF exporters omit NORMAL attributes. MeshStandardMaterial
+      // needs those normals to light the metal surfaces instead of a silhouette.
+      clone.geometry=obj.geometry;
+      if (!clone.geometry.getAttribute('normal')) {
+        clone.geometry=clone.geometry.clone();
+        clone.geometry.computeVertexNormals();
+      }
       const isTop=obj.name.startsWith('upper_');
-      clone.material=new THREE.MeshStandardMaterial({color: isTop?'#b9c6d7':'#788ca8',metalness:.62,roughness:.34,flatShading:false,side:THREE.DoubleSide});
+      // The reference CAD has no environment map. A mostly dielectric satin
+      // finish stays legible on dark screens without expensive reflections.
+      clone.material=new THREE.MeshStandardMaterial({
+        color:isTop?'#dce7f4':'#9fb6cc',
+        metalness:.12,
+        roughness:.63,
+        flatShading:false,
+        side:THREE.DoubleSide,
+      });
+      // Draw restrained technical silhouette edges to keep mechanical details
+      // readable when the model is small, even before realistic HDRI is added.
+      const edge=new THREE.LineSegments(
+        new THREE.EdgesGeometry(clone.geometry,38),
+        new THREE.LineBasicMaterial({
+          color:isTop?'#9ecaff':'#739cc8',
+          transparent:true,
+          opacity:.20,
+          depthWrite:false,
+        }),
+      );
+      edge.renderOrder=1;
+      clone.add(edge);
       (isTop?top:base).push(clone);
     });return {base,top};
   },[scene]);
   useEffect(()=>{
     for(const [bucket,items] of Object.entries(objects)){
       const focused=selected==='all'||(selected==='upper'?bucket==='top':bucket==='base');
-      for(const item of items){const mesh=item as THREE.Mesh;const material=mesh.material as THREE.MeshStandardMaterial;material.transparent=!focused;material.opacity=focused?1:.15;material.depthWrite=focused;}
+      for(const item of items){
+        const mesh=item as THREE.Mesh;
+        const material=mesh.material as THREE.MeshStandardMaterial;
+        material.transparent=!focused;
+        material.opacity=focused?1:.15;
+        material.depthWrite=focused;
+        for(const child of mesh.children){
+          if(child instanceof THREE.LineSegments){
+            const outline=child.material as THREE.LineBasicMaterial;
+            outline.opacity=focused?.20:.035;
+          }
+        }
+      }
     }
   },[objects,selected]);
   useFrame(({clock},delta)=>{
