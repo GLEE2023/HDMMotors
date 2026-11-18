@@ -1,0 +1,1 @@
+{"main-capability":{"identifier":"main-capability","description":"Restricted local mission console capability","local":true,"windows":["main"],"permissions":["core:default"]}}
